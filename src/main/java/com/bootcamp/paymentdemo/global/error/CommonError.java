@@ -14,7 +14,7 @@ public enum CommonError {
     // [ 2000: CUSTOMER ]
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "C2001", "이미 존재하는 사용자 이메일입니다."),
 
-    // -- 4000: --
+    // [ 4000: POINT ]
     INSUFFICIENT_BALANCE(HttpStatus.BAD_REQUEST, "P4001", "포인트 잔액이 부족합니다.");
 
     private final HttpStatus status;
