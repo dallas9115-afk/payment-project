@@ -38,7 +38,7 @@ public class Customer {
     // 고객 비밀번호
     @NotBlank(message = "비밀번호는 필수 입력값입니다.")
     @Column(name = "password_hash", nullable = false, length = 200)
-    @Size(min = 1, max = 200)
+    @Size(min = 8, max = 200)
     private String password;
 
     // 고객 전화번호
@@ -62,7 +62,7 @@ public class Customer {
         this.email = email;
         this.password = password;
         this.phoneNumber = phoneNumber;
-        this.grade = grade;
+        this.grade = Grade.NORMAL;
         this.points = points;
     }
 }
