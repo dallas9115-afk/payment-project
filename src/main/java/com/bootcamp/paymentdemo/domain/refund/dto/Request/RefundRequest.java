@@ -1,4 +1,4 @@
 package com.bootcamp.paymentdemo.domain.refund.dto.Request;
 
-public class Request {
+public class RefundRequest {
 }

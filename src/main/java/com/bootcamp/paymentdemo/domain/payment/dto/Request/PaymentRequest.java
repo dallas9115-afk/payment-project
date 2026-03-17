@@ -1,4 +1,4 @@
 package com.bootcamp.paymentdemo.domain.payment.dto.Request;
 
-public class Request {
+public class PaymentRequest {
 }

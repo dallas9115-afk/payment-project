@@ -1,6 +1,6 @@
 package com.bootcamp.paymentdemo.domain.payment.entity;
 
-import com.bootcamp.paymentdemo.domain.order.entity.Entity;
+import com.bootcamp.paymentdemo.domain.order.entity.Order;
 import com.bootcamp.paymentdemo.domain.payment.enums.PaymentStatus;
 import com.bootcamp.paymentdemo.global.common.BaseEntity;
 import jakarta.persistence.*;
@@ -13,7 +13,7 @@ import org.hibernate.annotations.SQLRestriction;
 import java.time.LocalDateTime;
 
 @Getter
-@jakarta.persistence.Entity
+@Entity
 @Table(
         name = "payments",
         indexes = {
@@ -30,9 +30,9 @@ public class Payment extends BaseEntity {
         @GeneratedValue(strategy = GenerationType.IDENTITY)
         private Long id;
 
-//        @ManyToOne(fetch = FetchType.LAZY)
-//        @JoinColumn(nullable = false)
-        private Long orderId;
+        @ManyToOne(fetch = FetchType.LAZY)
+        @JoinColumn(nullable = false)
+        private Order order;
 
         // PortOne에서 발급한 결제 고유 ID
         @Column(unique = true)
@@ -50,12 +50,12 @@ public class Payment extends BaseEntity {
         @Column
         private LocalDateTime refundedAt;
 
-        public static Payment create(Long order, String paymentKey, Long amount) {
+        public static Payment create(Order order, String paymentKey, Long amount) {
                 if (order == null) {
                         throw new IllegalArgumentException("Order cannot be null");
                 }
                 Payment payment = new Payment();
-                payment.orderId = order;
+                payment.order = order;
                 payment.paymentKey = paymentKey;
                 payment.amount = amount;
                 payment.status = PaymentStatus.READY;

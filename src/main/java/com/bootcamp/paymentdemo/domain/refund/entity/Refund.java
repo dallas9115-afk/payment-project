@@ -1,6 +1,7 @@
 package com.bootcamp.paymentdemo.domain.refund.entity;
 
-import com.bootcamp.paymentdemo.domain.refund.enums.RefundStatus;
+import com.bootcamp.paymentdemo.domain.payment.entity.Payment;
+import com.bootcamp.paymentdemo.domain.payment.enums.PaymentStatus;
 import com.bootcamp.paymentdemo.global.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -16,7 +17,7 @@ import java.time.LocalDateTime;
 @Table(
         name = "refunds",
         indexes = {
-                @Index(name = "idx_refunds_payment_key_deleted_created", columnList = "payment_key,deleted_at,created_at")
+                @Index(name = "idx_refunds_payment_id_deleted_created", columnList = "payment_id,deleted_at,created_at")
         }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -28,9 +29,9 @@ public class Refund extends BaseEntity {
         @GeneratedValue(strategy = GenerationType.IDENTITY)
         private Long id;
 
-        // PortOne에서 발급한 결제 고유 ID
-        @Column(unique = true)
-        private String paymentKey;
+        @ManyToOne(fetch = FetchType.LAZY)
+        @JoinColumn(name = "payment_id", nullable = false,unique = true)
+        private Payment payment;
 
         @Column(nullable = false)
         private Long refundAmount;
@@ -40,7 +41,7 @@ public class Refund extends BaseEntity {
 
         @Enumerated(EnumType.STRING)
         @Column(nullable = false)
-        private RefundStatus status;
+        private PaymentStatus status;
 
         @Column(nullable = false)
         private LocalDateTime processedAt;
