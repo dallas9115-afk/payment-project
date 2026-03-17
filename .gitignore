@@ -48,3 +48,7 @@ logs/
 *.bak
 *.swp
 *~
+
+# --- Security (CRITICAL) ---
+*.pem
+*.ppk

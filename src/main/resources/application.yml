@@ -2,6 +2,13 @@ spring:
   application:
     name: payment-demo
 
+# RDS 연결 전까지 DB 연결 임시 제외 (없으면 502 Bad gateway 발생)
+# DB가 현재 구성되지 않아서 그렇습니다.
+autoconfigure:
+  exclude:
+    - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+    - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
+
   # 클라이언트 API 계약 설정 파일 import
   config:
     import: optional:classpath:client-api-config.yml

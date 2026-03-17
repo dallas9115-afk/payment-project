@@ -65,6 +65,9 @@ public class SecurityConfig {
                     // 4) 인증 API
                     .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/register").permitAll()
 
+                    // 추가: 헬스체크를 위한 Actuator 경로는 인증 없이 무조건 통과(CI/CD 확인용, 배강혁)
+                    .requestMatchers("/actuator/**").permitAll()
+
                     // 5) 그 외 API는 인증 필요
                     .requestMatchers("/api/**").authenticated()
 
