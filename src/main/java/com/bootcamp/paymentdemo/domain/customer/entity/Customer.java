@@ -49,19 +49,19 @@ public class Customer {
     private String phoneNumber;
 
     // 고객 등급
-    @Enumerated(EnumType.STRING)
-    private Grade grade = GradeType.NORMAL; // 디폴트 값(NORMAL)
-
-    // 고객 포인트
-    private int points = 0; // 디폴트 값(0P)
-
-    @Builder
-    private Customer(String name, String email, String password, String phoneNumber, Grade grade, Integer points) {
-        this.name = name;
-        this.email = email;
-        this.password = password;
-        this.phoneNumber = phoneNumber;
-        this.grade = grade;
-        this.points = points;
-    }
+//    @Enumerated(EnumType.STRING)
+//    private Grade grade = GradeType.NORMAL; // 디폴트 값(NORMAL)
+//
+//    // 고객 포인트
+//    private int points = 0; // 디폴트 값(0P)
+//
+//    @Builder
+//    private Customer(String name, String email, String password, String phoneNumber, Grade grade, Integer points) {
+//        this.name = name;
+//        this.email = email;
+//        this.password = password;
+//        this.phoneNumber = phoneNumber;
+//        this.grade = grade;
+//        this.points = points;
+//    }
 }
