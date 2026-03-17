@@ -2,14 +2,24 @@ spring:
   application:
     name: payment-demo
 
-# RDS 연결 전까지 DB 연결 임시 제외 (없으면 502 Bad gateway 발생)
-# DB가 현재 구성되지 않아서 그렇습니다.
-autoconfigure:
-  exclude:
-    - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
-    - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
+  # 1. DB 연결 설정 (임시 exclude는 삭제하고 진짜 DB 주소 추가)
+  datasource:
+    url: jdbc:mysql://payment-db.cng4iem6aoiu.ap-northeast-2.rds.amazonaws.com:3306/payment?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    username: ${RDS_USERNAME}
+    password: ${RDS_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
 
-  # 클라이언트 API 계약 설정 파일 import
+  # 2. JPA (엔티티 자동 생성 및 쿼리 로그) 설정
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  # 3. 기존 설정들 (들여쓰기 위치 교정 완료)
   config:
     import: optional:classpath:client-api-config.yml
 
@@ -40,11 +50,11 @@ portone:
   channel:
     kg-inicis: ${PORTONE_CHANNEL_KG:your-kg-inicis-channel-key}
     toss: ${PORTONE_CHANNEL_TOSS:your-toss-channel-key}
+
 # JWT Configuration
 jwt:
   secret: ${JWT_SECRET:commercehub-secret-key-for-demo-please-change-this-in-production-environment}
   token-validity-in-seconds: ${JWT_VALIDITY:86400}  # 24 hours
-
 
 # UI Branding Configuration
 app:
