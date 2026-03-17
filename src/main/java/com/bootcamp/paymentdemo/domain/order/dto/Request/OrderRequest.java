@@ -1,4 +1,10 @@
 package com.bootcamp.paymentdemo.domain.order.dto.Request;
 
-public class Request {
+import lombok.Getter;
+
+@Getter
+public class OrderRequest {
+
+
+
 }
