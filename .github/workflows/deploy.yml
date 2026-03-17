@@ -37,7 +37,6 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          # 명령어가 길어지면 에러가 날 수 있어, 쉘 스크립트처럼 깔끔하게 작성합니다.
           script: |
             echo "1. 기존 컨테이너 중지 및 삭제"
             sudo docker stop infra-skeleton || true
@@ -46,8 +45,13 @@ jobs:
             echo "2. 최신 이미지 다운로드"
             sudo docker pull ${{ secrets.DOCKER_USERNAME }}/infra-skeleton:latest
             
-            echo "3. 도커 컨테이너 실행"
-            sudo docker run -d --name infra-skeleton -p 8080:8080 ${{ secrets.DOCKER_USERNAME }}/infra-skeleton:latest
+            echo "3. 도커 컨테이너 실행 (RDS 환경변수 주입)"
+            #  -e 옵션을 통해 깃허브 시크릿 값을 도커 컨테이너 내부로 전달합니다.
+            sudo docker run -d --name infra-skeleton -p 8080:8080 \
+              -e RDS_HOSTNAME="${{ secrets.RDS_HOSTNAME }}" \
+              -e RDS_USERNAME="${{ secrets.RDS_USERNAME }}" \
+              -e RDS_PASSWORD="${{ secrets.RDS_PASSWORD }}" \
+              ${{ secrets.DOCKER_USERNAME }}/infra-skeleton:latest
             
             echo "4. 사용하지 않는 찌꺼기 이미지 삭제 (용량 확보)"
             sudo docker image prune -f
