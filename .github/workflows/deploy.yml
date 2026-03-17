@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ] # develop 브랜치에 합쳐질 때도 배포되도록 추가!
 
 jobs:
   build-and-push:
