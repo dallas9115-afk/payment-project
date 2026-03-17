@@ -7,6 +7,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum Grade {
     NORMAL, // 일반 회원
-    VIP, // VIP 회원
-    VVIP // VVIP 회원
+    VIP,    // VIP 회원
+    VVIP    // VVIP 회원
 }
