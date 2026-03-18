@@ -1,6 +1,7 @@
 package com.bootcamp.paymentdemo.domain.order.entity;
 
 
+import com.bootcamp.paymentdemo.domain.customer.entity.Customer;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -16,19 +17,30 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, unique = true)
+    private String orderId;
+
+    // 사용자 정보
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id",nullable = false)
+    private Customer customer;
+
     // 주문 번호
     private String orderNumber;
 
-    // 사용자 아이디 나중에 추가
+    private Integer totalAmount;
+
 
     // 주문 상태
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
 
-    public Order(Long userId, String orderNumber, Integer totalAmount, OrderStatus status) {
+    public Order(String orderId, Customer customer, String orderNumber, Integer totalAmount, OrderStatus status) {
+        this.orderId=orderId;
+        this.customer = customer;
         this.orderNumber = orderNumber;
+        this.totalAmount = totalAmount;
         this.status = status;
-
     }
 
 }
