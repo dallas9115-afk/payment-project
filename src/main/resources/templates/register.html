@@ -104,15 +104,34 @@
                 return;
             }
 
+            // 테스트용 엔드포인트 설정
+            if (!window.APP_RUNTIME.config) window.APP_RUNTIME.config = {};
+            if (!window.APP_RUNTIME.config.api) window.APP_RUNTIME.config.api = {};
+            if (!window.APP_RUNTIME.config.api.endpoints) window.APP_RUNTIME.config.api.endpoints = {};
+
+            window.APP_RUNTIME.config.api.baseUrl = 'http://localhost:8080';
+            window.APP_RUNTIME.config.api.endpoints.register = {
+                url: '/api/customer/v1/customers/signup',
+                method: 'POST'
+            };
+
             try {
-                const result = await makeApiRequest('register', {
+                const result = await makeApiRequest('register', { // endpointKey: 'register'
                     body: {
                         name: name,
                         email: email,
                         password: password,
-                        phone: phone
+                        phoneNumber: phone
                     }
                 });
+
+                console.log('회원가입 API 응답:', result);
+
+                if (!validateApiResponse('register', result)) {
+                    errorText.textContent = 'API 응답 형식이 올바르지 않습니다.';
+                    errorMessage.style.display = 'block';
+                    return;
+                }
 
                 // YML 스키마 기반 자동 검증
                 if (!validateApiResponse('register', result)) {
