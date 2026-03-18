@@ -1,16 +1,17 @@
 package com.bootcamp.paymentdemo.domain.point.entity;
 
 
+import com.bootcamp.paymentdemo.domain.user.entity.UserEntity2;
 import com.bootcamp.paymentdemo.global.common.BaseEntity;
 import jakarta.persistence.*;
 import jakarta.persistence.Entity;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
+@Builder
 @Table(name = "point_histories")
 public class PointHistory extends BaseEntity {
 
@@ -18,20 +19,32 @@ public class PointHistory extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private UserEntity2 user;
 
-    @Column(nullable = false)
-    private Long pointDetailId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "point_detail_id")
+    private PointDetail pointDetail;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PointStatus type;
 
     @Column(nullable = false)
-    private Integer amount;
+    private Long amount;   // 정합성을 위해 long 사용
+
+    @Column(nullable = false)
+    private Long beforePoint;
+
+    @Column(nullable = false)
+    private Long afterPoint;
 
     @Column
     private String orderId;
+
+    @Column
+    private String reason;
+
 
 }

@@ -19,10 +19,10 @@ public class PointDetail extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    private Long id;
 
     @Column(nullable = false)
-    private long userId;
+    private Long userId;
 
     @Column(nullable = false)
     private Integer initialAmount;  // 최초 포인트 잔액 0원 처리
@@ -45,6 +45,15 @@ public class PointDetail extends BaseEntity {
         this.status = PointStatus.ACCUMULATED;
     }
 
+    // 환불시 사용할 메서드임
+    public void cancelUsage(Integer amountToRestore) {
+        this.remainAmount += amountToRestore;
+        this.status = (this.remainAmount.equals(this.initialAmount))
+                ? PointStatus.ACCUMULATED : PointStatus.PARTIALLY_USED;
+    }
+
+
+    // 포인트 결제시
     public void use(Integer amountToUse){
         if (this.remainAmount < amountToUse) {
             throw new CommonException((CommonError.INSUFFICIENT_BALANCE));
