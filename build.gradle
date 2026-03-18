@@ -51,6 +51,9 @@ dependencies {
     // tsid
     implementation 'com.github.f4b6a3:tsid-creator:5.2.6'
 
+    // security
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
     runtimeOnly 'com.mysql:mysql-connector-j'
 
     // Testing

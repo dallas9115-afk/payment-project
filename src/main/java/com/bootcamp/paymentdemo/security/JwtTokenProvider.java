@@ -1,87 +1,89 @@
 package com.bootcamp.paymentdemo.security;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
+import com.bootcamp.paymentdemo.global.error.CommonError;
+import com.bootcamp.paymentdemo.global.error.CommonException;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.util.Base64;
 import java.util.Date;
 
-/**
- * JWT 토큰 생성 및 검증 유틸리티
- * 개선할 부분: Refresh Token, Token Expiry 관리, Claims 커스터마이징 등
- */
 @Component
+@Slf4j
 public class JwtTokenProvider {
 
-    private final SecretKey secretKey;
-    private final long tokenValidityInMilliseconds;
+    // JWT 비밀키
+    @Value("${jwt.secret-key}")
+    private String secretKey;
+    private Key key;
 
-    public JwtTokenProvider(
-        @Value("${jwt.secret:commercehub-secret-key-for-demo-please-change-this-in-production-environment}") String secret,
-        @Value("${jwt.token-validity-in-seconds:86400}") long tokenValidityInSeconds
-    ) {
-        this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-        this.tokenValidityInMilliseconds = tokenValidityInSeconds * 1000;
+    // 토큰 만료 시간 설정
+    private final long TOKEN_EXPIRE_TIME = 24 * 60 * 60 * 1000L;
+
+    @PostConstruct
+    public void init() {
+        key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
 
-    /**
-     * JWT 토큰 생성
-     *
-     * TODO: 개선 사항
-     * - 사용자 역할(Role) 정보 추가
-     * - 추가 Claims 정보 (이름, 이메일 등)
-     * - Refresh Token 발급 로직
-     */
-    public String createToken(String email) {
-        Date now = new Date();
-        Date validity = new Date(now.getTime() + tokenValidityInMilliseconds);
+    // JWT 토큰 생성
+    public String createToken(Long customerId, String email) {
+        Date date = new Date();
 
         return Jwts.builder()
-            .subject(email)
-            .issuedAt(now)
-            .expiration(validity)
-            .signWith(secretKey)
-            .compact();
+                .setSubject(String.valueOf(customerId))
+                .claim("email", email)
+                .setIssuedAt(date)
+                .setExpiration(new Date(date.getTime() + TOKEN_EXPIRE_TIME))
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
     }
 
-    /**
-     * JWT 토큰에서 사용자 이름 추출
-     */
-    public String getEmail(String token) {
-        Claims claims = Jwts.parser()
-            .verifyWith(secretKey)
-            .build()
-            .parseSignedClaims(token)
-            .getPayload();
-
-        return claims.getSubject();
-    }
-
-    /**
-     * JWT 토큰 유효성 검증
-     *
-     * TODO: 개선 사항
-     * - 토큰 블랙리스트 체크 (로그아웃된 토큰)
-     * - 토큰 갱신 로직
-     * - 상세한 예외 처리
-     */
+    // JWT 토큰 검증
     public boolean validateToken(String token) {
         try {
             Jwts.parser()
-                .verifyWith(secretKey)
-                .build()
-                .parseSignedClaims(token);
+                    .setSigningKey(key)
+                    .build()
+                    .parseSignedClaims(token);
             return true;
-        } catch (Exception e) {
-            // TODO: 구체적인 예외 처리 구현
-            // - ExpiredJwtException: 만료된 토큰
-            // - MalformedJwtException: 잘못된 형식
-            // - SignatureException: 서명 오류
-            return false;
+
+        } catch (SecurityException | MalformedJwtException | SignatureException e) {
+            log.error("JWT 토큰이 유효하지 않습니다.");
+            throw new CommonException(CommonError.INVALID_TOKEN);
+
+        } catch (ExpiredJwtException e) {
+            log.error("JWT 토큰이 만료되었습니다.");
+            throw new CommonException(CommonError.EXPIRED_TOKEN);
+
+        } catch (UnsupportedJwtException e) {
+            log.error("지원되지 않는 JWT 토큰입니다.");
+            throw new CommonException(CommonError.UNSUPPORTED_TOKEN);
+
+        } catch (IllegalArgumentException e) {
+            log.error("JWT 토큰이 비어있습니다.");
+            throw new CommonException(CommonError.EMPTY_TOKEN);
         }
     }
+
+    // JWT 토큰 정보 추출
+    public Claims getCustomerInfoFromToken(String token) {
+        return Jwts.parser()
+                .setSigningKey(key)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+    }
+
+    // JWT 토큰에서 이메일 추출
+    public String getEmail(String token) {
+        return getCustomerInfoFromToken(token)
+                .get("email", String.class);
+    }
+
 }

@@ -1,6 +1,8 @@
 package com.bootcamp.paymentdemo.domain.customer.controller;
 
+import com.bootcamp.paymentdemo.domain.customer.dto.request.CustomerLoginRequest;
 import com.bootcamp.paymentdemo.domain.customer.dto.request.CustomerSignupRequest;
+import com.bootcamp.paymentdemo.domain.customer.dto.response.CustomerLoginResponse;
 import com.bootcamp.paymentdemo.domain.customer.dto.response.CustomerSignupResponse;
 import com.bootcamp.paymentdemo.domain.customer.service.CustomerService;
 import com.bootcamp.paymentdemo.global.common.ApiResponse;
@@ -28,5 +30,17 @@ public class CustomerController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success(customerService.signUp(request)));
+    }
+
+    // 로그인
+    @PostMapping("/v1/customers/login")
+    public ResponseEntity<ApiResponse<CustomerLoginResponse>> login(
+            @Valid @RequestBody CustomerLoginRequest request
+            ) {
+        CustomerLoginResponse response = customerService.login(request);
+
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(ApiResponse.success(response));
     }
 }

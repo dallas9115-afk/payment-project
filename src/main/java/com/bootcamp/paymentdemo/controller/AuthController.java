@@ -57,12 +57,13 @@ public class AuthController {
 
         try {
             // 1. 인증 시도
-            authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(email, password)
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, password)
             );
 
             // 2. JWT 토큰 생성
-            String token = jwtTokenProvider.createToken(email);
+            Long customerId = Long.parseLong(authentication.getName());
+            String token = jwtTokenProvider.createToken(customerId, email);
 
             // 3. 응답
             response.put("success", true);
