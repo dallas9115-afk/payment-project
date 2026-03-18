@@ -5,7 +5,7 @@ import com.bootcamp.paymentdemo.domain.point.entity.*;
 import com.bootcamp.paymentdemo.domain.point.repository.PointDetailRepository;
 import com.bootcamp.paymentdemo.domain.point.repository.PointHistoryRepository;
 import com.bootcamp.paymentdemo.domain.point.repository.PointTransactionRepository;
-import com.bootcamp.paymentdemo.domain.user.entity.UserEntity2;
+import com.bootcamp.paymentdemo.domain.user.entity.User;
 import com.bootcamp.paymentdemo.domain.user.repository.UserRepository2;
 import com.bootcamp.paymentdemo.global.error.CommonError;
 import com.bootcamp.paymentdemo.global.error.CommonException;
@@ -73,7 +73,7 @@ public class PointTransactionService {
 
         // 1. [비관적 락] 유저 잔액(스냅샷)을 수정하기 위해 DB를 잠금
         // 에러 작성 대기중
-        UserEntity2 user = (UserEntity2) userRepository2.findByIdWithLock(userId)
+        User user = (User) userRepository2.findByIdWithLock(userId)
                 .orElseThrow(() -> new CommonException(CommonError.INSUFFICIENT_BALANCE));
 
         // 2. [1차 검증] 전체 잔액이 부족하면 상세 내역을 뒤질 필요도 없이 즉시 리턴

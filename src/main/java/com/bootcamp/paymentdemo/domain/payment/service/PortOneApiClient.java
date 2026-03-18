@@ -1,13 +1,16 @@
 package com.bootcamp.paymentdemo.domain.payment.service;
 
+import com.bootcamp.paymentdemo.config.PortOneProperties;
+import com.bootcamp.paymentdemo.domain.payment.dto.Response.PortOnePaymentInfoResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
+
 import java.util.UUID;
 
 @Slf4j
@@ -15,81 +18,89 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PortOneApiClient {
 
-    // 외부 API 호출을 도와주는 스프링의 기본 도구입니다.
+    /**
+     * 외부 HTTP 통신 도구
+     * - 실무에서는 WebClient를 쓰는 경우도 많지만, 현재 프로젝트는 RestTemplate으로 충분합니다.
+     */
     private final RestTemplate restTemplate = new RestTemplate();
 
-    // TODO: application.yml에서 포트원 V2 Secret Key를 주입받아야 합니다.
-    private final String PORTONE_API_SECRET = "여기에_포트원_시크릿키를_주입";
+    /**
+     * application.yml -> portone.* 설정을 바인딩한 값
+     * - API base-url, secret, store-id 등을 여기서 가져옵니다.
+     */
+    private final PortOneProperties portOneProperties;
 
     /**
-     * 포트원 V2 단건 결제 조회 API 호출
+     * PortOne 결제 단건 조회
+     *
+     * @param paymentId 우리 시스템/PortOne에서 공통으로 사용하는 결제 식별자
+     * @return PortOnePaymentInfoResponse (상태, 금액, 상점ID 등 검증용 정보)
      */
-    public String getPaymentInfo(String paymentId) {
-        String url = "https://api.portone.io/payments/" + paymentId;
+    public PortOnePaymentInfoResponse getPaymentInfo(String paymentId) {
+        String url = portOneProperties.getApi().getBaseUrl() + "/payments/" + paymentId;
 
-        // 1. 헤더 세팅 (인증 키 및 멱등 키)
         HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "PortOne " + PORTONE_API_SECRET);
-        // 포트원 문서에서 요구한 대로 멱등 키(Idempotency-Key)를 쌍따옴표로 감싸서 생성
-        headers.set("Idempotency-Key", "\"" + UUID.randomUUID().toString() + "\"");
+        headers.set("Authorization", "PortOne " + portOneProperties.getApi().getSecret());
+        // 외부 API 호출에도 멱등 키를 넣어두면 재시도 상황에서 안전합니다.
+        headers.set("Idempotency-Key", "\"" + UUID.randomUUID() + "\"");
 
-        HttpEntity<String> entity = new HttpEntity<>(headers);
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
 
         try {
-            // 2. 포트원에 GET 요청 쏘기
-            ResponseEntity<String> response = restTemplate.exchange(
-                    url, HttpMethod.GET, entity, String.class);
+            ResponseEntity<PortOnePaymentInfoResponse> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    entity,
+                    PortOnePaymentInfoResponse.class
+            );
 
-            log.info("포트원 결제 조회 성공: {}", response.getBody());
-            // 실제로는 String이 아니라 PortOnePaymentReceipt 같은 전용 DTO로 받아야 함.
-            return response.getBody();
+            PortOnePaymentInfoResponse body = response.getBody();
+            if (body == null) {
+                throw new IllegalArgumentException("포트원 결제 조회 응답이 비어 있습니다.");
+            }
+
+            log.info("포트원 결제 단건조회 성공 - paymentId={}, status={}, amount={}",
+                    paymentId, body.getStatus(), body.resolveTotalAmount());
+            return body;
 
         } catch (Exception e) {
-            log.error("포트원 결제 내역 조회 실패: {}", e.getMessage());
-            throw new IllegalArgumentException("포트원 결제 조회 중 오류 발생");
+            log.error("포트원 결제 단건조회 실패 - paymentId={}, message={}", paymentId, e.getMessage(), e);
+            throw new IllegalArgumentException("포트원 결제 조회 중 오류가 발생했습니다.");
         }
     }
 
     /**
-     * 포트원 V2 빌링키(정기결제) 자동 결제 요청 API
-     * * @param billingKey 포트원에서 발급받아 DB에 저장해둔 빌링키
+     * 포트원 빌링키 결제 요청 (정기결제)
      *
-     * @param paymentId 이번 결제의 고유 식별자 (우리가 생성해서 보냄)
-     * @param amount    결제할 금액
-     * @return 결제 성공 여부
+     * @param billingKey PortOne에서 발급받아 저장한 빌링키
+     * @param paymentId  이번 결제 고유 식별자
+     * @param amount     결제 금액
+     * @return true: 결제 성공, false: 결제 실패
      */
     public boolean payWithBillingKey(String billingKey, String paymentId, int amount) {
-        // 포트원 V2 빌링키 결제 엔드포인트 (포트원 문서 규격)
-        String url = "https://api.portone.io/payments/" + paymentId + "/billing-key";
+        String url = portOneProperties.getApi().getBaseUrl() + "/payments/" + paymentId + "/billing-key";
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "PortOne " + PORTONE_API_SECRET);
-        headers.set("Idempotency-Key", "\"" + UUID.randomUUID().toString() + "\"");
+        headers.set("Authorization", "PortOne " + portOneProperties.getApi().getSecret());
+        headers.set("Idempotency-Key", "\"" + UUID.randomUUID() + "\"");
         headers.set("Content-Type", "application/json");
 
-        // 요청 바디 생성 (포트원 문서 기준 필수 값)
-        // 실무처럼 하려면 Map 대신 별도의 Request DTO 클래스를 구현하는 쪽이 좋습니다. 이건 구현을 위해 임시로 작성
+        // 최소 요청 바디만 직접 구성
         String requestBody = String.format(
-                "{\"billingKey\": \"%s\", \"orderName\": \"월간 정기 구독\", \"amount\": {\"total\": %d}}",
+                "{\"billingKey\":\"%s\",\"orderName\":\"월간 정기 구독\",\"amount\":{\"total\":%d}}",
                 billingKey, amount
         );
 
         HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
 
         try {
-            log.info("빌링키 결제 요청 시작 - PaymentId: {}", paymentId);
-
-            ResponseEntity<String> response = restTemplate.exchange(
-                    url, HttpMethod.POST, entity, String.class);
-
-            log.info("빌링키 결제 성공! 응답: {}", response.getBody());
-            return true; // 정상적으로 결제됨 (상태코드 2xx)
-
+            log.info("포트원 빌링키 결제 요청 - paymentId={}, amount={}", paymentId, amount);
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+            log.info("포트원 빌링키 결제 성공 - paymentId={}, response={}", paymentId, response.getBody());
+            return true;
         } catch (Exception e) {
-            // 한도 초과, 잔액 부족, 카드 정지 등의 이유로 결제가 실패하면 이쪽으로 빠집니다.
-            log.error("빌링키 결제 실패 (잔액 부족 등): {}", e.getMessage());
+            log.error("포트원 빌링키 결제 실패 - paymentId={}, message={}", paymentId, e.getMessage(), e);
             return false;
         }
-
     }
 }

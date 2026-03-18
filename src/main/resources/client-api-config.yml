@@ -20,7 +20,7 @@
 #    클라이언트는 방법 2, 3을 사용하면 수정 불필요!
 
 api:
-  base-url: http://localhost:8080
+  base-url: ${CLIENT_API_BASE_URL:http://localhost:8080}
 
   # API 엔드포인트 및 계약 정의
   endpoints:

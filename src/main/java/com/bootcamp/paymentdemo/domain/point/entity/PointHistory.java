@@ -1,7 +1,7 @@
 package com.bootcamp.paymentdemo.domain.point.entity;
 
 
-import com.bootcamp.paymentdemo.domain.user.entity.UserEntity2;
+import com.bootcamp.paymentdemo.domain.user.entity.User;
 import com.bootcamp.paymentdemo.global.common.BaseEntity;
 import jakarta.persistence.*;
 import jakarta.persistence.Entity;
@@ -21,7 +21,7 @@ public class PointHistory extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private UserEntity2 user;
+    private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "point_detail_id")

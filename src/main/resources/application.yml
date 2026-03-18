@@ -4,7 +4,7 @@ spring:
 
   # 1. DB 연결 설정 (임시 exclude는 삭제하고 진짜 DB 주소 추가)
   datasource:
-    url: jdbc:mysql://payment-db.cng4iem6aoiu.ap-northeast-2.rds.amazonaws.com:3306/payment?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    url: jdbc:mysql://${RDS_HOSTNAME:localhost}:3306/payment?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
     username: ${RDS_USERNAME}
     password: ${RDS_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -21,7 +21,9 @@ spring:
 
   # 3. 기존 설정들 (들여쓰기 위치 교정 완료)
   config:
-    import: optional:classpath:client-api-config.yml
+    import:
+      - optional:classpath:client-api-config.yml
+      - optional:classpath:application-local.yml
 
   thymeleaf:
     cache: false
@@ -44,12 +46,12 @@ server:
 portone:
   api:
     base-url: https://api.portone.io
-    secret: ${PORTONE_API_SECRET:your-api-secret}
+    secret: ${PORTONE_API_SECRET:}
   store:
-    id: ${PORTONE_STORE_ID:your-store-id}
+    id: ${PORTONE_STORE_ID:}
   channel:
-    kg-inicis: ${PORTONE_CHANNEL_KG:your-kg-inicis-channel-key}
-    toss: ${PORTONE_CHANNEL_TOSS:your-toss-channel-key}
+    kg-inicis: ${PORTONE_CHANNEL_KG:}
+    toss: ${PORTONE_CHANNEL_TOSS:}
 
 # JWT Configuration
 jwt:
