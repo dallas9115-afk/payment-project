@@ -16,6 +16,7 @@ public record CustomerSignupRequest(
         String email,
 
         // 고객 비밀번호
+        @NotBlank(message = "비밀번호는 필수 입력값입니다.")
         @Size(min = 8, max = 200, message = "비밀번호 길이는 8~200자 사이로 작성해주시기 바랍니다.")
         String password,
 
