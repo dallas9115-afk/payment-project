@@ -8,9 +8,10 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum OrderStatus {
 
-    PAYMENT_PENDING("PAYMENT_PENDING", "결제 대기"),    // 결제 대기
-    ORDER_COMPLETED("ORDER_COMPLETED","주문 완료"),     // 주문 완료
-    REFUNDED("REFUNDED","환불");                       // 환불
+    // 상태
+    PENDING("PENDING", "결제 대기"),    // 결제 대기
+    PAID("PAID","주문 완료"),     // 주문 완료
+    CANCELLED("CANCELLED","주문 취소");                       // 환불
 
     private final String key;
     private final String value;

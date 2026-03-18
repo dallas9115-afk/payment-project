@@ -2,6 +2,7 @@ package com.bootcamp.paymentdemo.domain.order.entity;
 
 
 import com.bootcamp.paymentdemo.domain.product.entity.Product;
+import com.bootcamp.paymentdemo.global.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -11,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name="order_items")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class OrderItem {
+public class OrderItem extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,13 +21,13 @@ public class OrderItem {
 
     // 주문과 매핑 주문은 하나지만 주문 상품은 여러개 일 수 있다.
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "orderId",nullable = false)
+    @JoinColumn(name = "order_id",nullable = false)
     private Order order;
 
 
   // 하나의 상품(Product)은 여러 개의 주문상품(OrderItem)에 포함될 수 있다.
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "productId", nullable = false)
+    @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
 
@@ -44,7 +45,8 @@ public class OrderItem {
     private Integer quantity;
 
 
-    public OrderItem(Product product, Integer quantity) {
+    public OrderItem(Order order,Product product, Integer quantity) {
+       this.order=order;
         this.product = product;
         this.productName = product.getName();
         this.productPrice = product.getPrice();
