@@ -45,21 +45,26 @@ public class MembershipService {
 
     // 결제후 등급이 바뀌는 메서드
     @Transactional
-    public void updateMembershipAfterPayment(Long customerId, Long addedAmount) {
+    public void updateMembershipAfterPayment(Long customerId, Long paidAmount) {
 
         // 1. 유저의 멤버십 정보 조회
         UserMembership membership = userMembershipRepository.findByCustomerId(customerId)
-                .orElseThrow(() -> new IllegalStateException("멤버십 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalStateException("유저/멤버십 정보를 찾을 수 없습니다."));
+        try {
+            // 2. 누적 금액 갱신
+            Long newTotalAmount = membership.getTotalPaidAmount() + paidAmount;
 
-        // 2. 누적 금액 갱신
-        Long newTotalAmount = membership.getTotalPaidAmount() + addedAmount;
+            // 3. 바뀐 금액에 따른 정책 조회 및 등급 변경 -> minPaidAmount 필드명을 사용해서 가장 적합한 정책 조회
+            MembershipGradePolicy newPolicy = policyRepository
+                    .findTopByMinPaidAmountLessThanEqualOrderByMinPaidAmountDesc(newTotalAmount)
+                    .orElse(membership.getGradePolicy()); // 없으면 현재 유지
 
-        // 3. 바뀐 금액에 따른 정책 조회 및 등급 변경
-        MembershipGradePolicy newPolicy = policyRepository.findSuitablePolicy(newTotalAmount)
-                .orElse(membership.getGradePolicy()); // 없으면 현재 유지
+            // 4. 멤버십 업데이트 DirtyChecking
+            membership.updateMembership(newPolicy, newTotalAmount);
 
-        // 4. 멤버십 업데이트 DirtyChecking
-        membership.updateMembership(newPolicy, newTotalAmount);
+        } catch (Exception e) {
+            throw new IllegalStateException("멤버십 갱신 실패" + e.getMessage());
+        }
 
 
     }

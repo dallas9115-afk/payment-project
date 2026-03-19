@@ -1,6 +1,4 @@
-import com.bootcamp.paymentdemo.domain.point.entity.PointTransactionEntity;
 import com.bootcamp.paymentdemo.domain.point.entity.PointType;
-import com.bootcamp.paymentdemo.domain.point.repository.PointTransactionRepository;
 import com.bootcamp.paymentdemo.domain.point.service.PointTransactionService;
 import com.bootcamp.paymentdemo.global.error.CommonException;
 import org.junit.jupiter.api.DisplayName;
