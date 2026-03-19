@@ -20,17 +20,17 @@ public interface PointTransactionRepository extends JpaRepository<PointTransacti
     // 잔액 상황을 조회하기 위한 일시적 코드 / 언제든 수정 가능 :D
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @QueryHints({@QueryHint(name="jacx.persistence.lock.timeout",value = "3000")}) //nms라 3초임
-    List<PointTransactionEntity> findAllByUserIdOrderByCreatedAtDesc(Long userId);
-    Optional<PointTransactionEntity> findFirstByUserIdOrderByCreatedAtDesc(Long userId);
+    List<PointTransactionEntity> findAllByCustomerIdOrderByCreatedAtDesc(Long userId);
+    Optional<PointTransactionEntity> findFirstByCustomerIdOrderByCreatedAtDesc(Long userId);
 
     // 2. 유형별 필터링: 특정 사용자의 내역 중 특정 타입(예: EARNED)만 조회
     // userId와 type 두 가지 조건을 함께 사용합니다.
     // 잔액 상황을 조회하기 위한 일시적 코드 / 언제든 수정 가능 :D
-    List<PointTransactionEntity> findAllByUserIdAndType(Long userId, PointType type);
+    List<PointTransactionEntity> findAllByCustomerIdAndType(Long userId, PointType type);
 
     // 3. 기간 조회: 특정 날짜 사이에 발생한 내역 확인
     // Between 키워드를 사용하여 시작일과 종료일 사이의 데이터를 찾습니다.
-    List<PointTransactionEntity> findAllByUserIdAndCreatedAtBetween(
+    List<PointTransactionEntity> findAllByCustomerIdAndCreatedAtBetween(
             Long userId,
             LocalDateTime start,
             LocalDateTime end

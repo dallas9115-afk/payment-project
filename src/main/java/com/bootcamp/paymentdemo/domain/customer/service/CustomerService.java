@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CustomerService {
     private final CustomerRepository customerRepository;
+    private final MembershipService membershipService;
 
     // 고객 회원가입
     @Transactional
@@ -29,9 +30,12 @@ public class CustomerService {
                         .password(request.password())
                         .phoneNumber(request.phoneNumber())
                         .grade(Grade.NORMAL)
-                        .points(0)
+                        .currentPoint(0L)
                         .build()
         );
+
+        membershipService.createDefaultMembership(customer);
+
         return CustomerSignupResponse.from(customer);
     }
 }

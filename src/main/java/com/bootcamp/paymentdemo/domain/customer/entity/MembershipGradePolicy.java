@@ -1,16 +1,14 @@
-package com.bootcamp.paymentdemo.domain.user.entity;
+package com.bootcamp.paymentdemo.domain.customer.entity;
 
 import com.bootcamp.paymentdemo.global.common.BaseEntity;
 import jakarta.persistence.*;
-import jakarta.persistence.Entity;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Builder
+@AllArgsConstructor
 @Table(name = "membership_grade_policies")
 public class MembershipGradePolicy extends BaseEntity {
     @Id

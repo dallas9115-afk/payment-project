@@ -24,8 +24,8 @@ public class PointTransactionEntity {
     private Long id;
 
     // 사용자 연결
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @Column(name = "customer_id", nullable = false)
+    private Long customerId;
 
     // 주문 연결
     @Column(name = "order_id")
@@ -35,12 +35,12 @@ public class PointTransactionEntity {
     @Column(name = "payment_id")
     private Long paymentId;
 
-    // 포인트 변동 유형(Lock 연계)
+    // 포인트 변동 유형(EARNED,USED, ROLLBACK, HOLD, SPENT / Lock 연계)
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false)
     private PointType type;
 
-    // 변동된 포인트 수치
+    // 변동된 포인트 수치, 포인트가 얼마가 거래되었는지(+, -)
     @Column(name = "points", nullable = false)
     private Integer points;
 
@@ -56,15 +56,15 @@ public class PointTransactionEntity {
     @Column(name = "description")
     private String description;
 
-    // 기록 생성 일시
+    // 포인트 기록(생성, 사용 등) 생성 일시
     @CreatedDate
     @Column(name = "created_at", updatable = false, nullable = false)
     private LocalDateTime createdAt;
 
     @Builder
-    public PointTransactionEntity(Long userId, Long orderId, Long paymentId, PointType type,
+    public PointTransactionEntity(Long customerId, Long orderId, Long paymentId, PointType type,
                                   Integer points, Integer balanceAfter, LocalDateTime expiresAt, String description) {
-        this.userId = userId;
+        this.customerId = customerId;
         this.orderId = orderId;
         this.paymentId = paymentId;
         this.type = type;

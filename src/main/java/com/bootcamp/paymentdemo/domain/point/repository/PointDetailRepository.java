@@ -8,5 +8,7 @@ import java.util.List;
 public interface PointDetailRepository extends JpaRepository<PointDetail, Long> {
 
 
-    List<PointDetail> findAllByUserIdAndRemainAmountGreaterThanOrderByExpiredAtAsc(Long userId, int i);
+    List<PointDetail> findAllByOrderId(String orderId);
+
+    List<PointDetail> findAllByCustomerIdAndRemainAmountGreaterThanOrderByExpiredAtAsc(Long userId, int i);
 }

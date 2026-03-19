@@ -1,0 +1,93 @@
+package com.bootcamp.paymentdemo.domain.customer.service;
+
+
+import com.bootcamp.paymentdemo.domain.customer.entity.Customer;
+import com.bootcamp.paymentdemo.domain.order.repository.OrderRepository;
+import com.bootcamp.paymentdemo.domain.customer.entity.MembershipGradePolicy;
+import com.bootcamp.paymentdemo.domain.customer.entity.UserMembership;
+import com.bootcamp.paymentdemo.domain.customer.repository.MembershipGradePolicyRepository;
+import com.bootcamp.paymentdemo.domain.customer.repository.UserMembershipRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+@RequiredArgsConstructor
+@Transactional
+@Slf4j
+public class MembershipService {
+
+    private final OrderRepository orderRepository;
+    private final UserMembershipRepository userMembershipRepository;
+    private final MembershipGradePolicyRepository policyRepository;
+
+    @Transactional
+    public void createDefaultMembership(Customer customer) {
+        //1. 기본 등급(NORMAL) 정책을 찾아옴.
+        MembershipGradePolicy defaultPolicy = policyRepository.findByGradeCode("NORMAL")
+                .orElseThrow(() -> new IllegalStateException("없는 등급니다."));
+
+        // 반드시 common error 수정해서 넣어야함,
+
+        //2. 유저와 연결된 멤버십 레코드를 생성함.
+        UserMembership membership = UserMembership.builder()
+                .customer(customer)
+                .gradePolicy(defaultPolicy)
+                .totalPaidAmount(0L)
+                .currentPointRate(defaultPolicy.getPointRate())
+                .build();
+
+        userMembershipRepository.save(membership);
+
+
+    }
+
+    // 결제후 등급이 바뀌는 메서드
+    @Transactional
+    public void updateMembershipAfterPayment(Long customerId, Long addedAmount) {
+
+        // 1. 유저의 멤버십 정보 조회
+        UserMembership membership = userMembershipRepository.findByCustomerId(customerId)
+                .orElseThrow(() -> new IllegalStateException("멤버십 정보를 찾을 수 없습니다."));
+
+        // 2. 누적 금액 갱신
+        Long newTotalAmount = membership.getTotalPaidAmount() + addedAmount;
+
+        // 3. 바뀐 금액에 따른 정책 조회 및 등급 변경
+        MembershipGradePolicy newPolicy = policyRepository.findSuitablePolicy(newTotalAmount)
+                .orElse(membership.getGradePolicy()); // 없으면 현재 유지
+
+        // 4. 멤버십 업데이트 DirtyChecking
+        membership.updateMembership(newPolicy, newTotalAmount);
+
+
+    }
+
+    // 등급 재설정 로직임
+    @Transactional
+    public void refreshUserMembership(Long customerId) {
+        // 1. 해당 유저의 '결제 완료'된 주문들의 총 합계를 구합니다. (환불된 것은 제외)
+        // [쿼리 핵심] SELECT SUM(total_price) FROM orders WHERE custemr_id = :customerId AND status = 'PAID'
+        Long totalPaidAmount = orderRepository.sumPaidAmountByCustomerId(customerId);
+        if (totalPaidAmount == null) totalPaidAmount = 0L;
+
+        // 2. 현재 유저의 멤버십 정보 조회
+        UserMembership membership = userMembershipRepository.findByCustomerId(customerId)
+                .orElseThrow(() -> new IllegalStateException("멤버십 정보를 찾을 수 없습니다."));
+
+        // 3. 누적 금액에 맞는 적절한 등급 정책 조회
+        // [쿼리 핵심] 기준 금액이 누적액 이하인 등급 중 가장 높은 것 하나 선택
+        MembershipGradePolicy newPolicy =  policyRepository.findTopByMinPaidAmountLessThanEqualOrderByMinPaidAmountDesc(totalPaidAmount)
+                .orElseThrow(() -> new IllegalStateException("적절한 등급 정책이 없습니다."));
+
+        // 4. 등급이 변동되었다면 업데이트
+        if (!membership.getGradePolicy().equals(newPolicy)) {
+            log.info("유저 {} 등급 변동: {} -> {}",
+                    customerId, membership.getGradePolicy().getGradeName(), newPolicy.getGradeName());
+            membership.updateGrade(newPolicy);
+        }
+    }
+
+
+}
