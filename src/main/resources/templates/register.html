@@ -11,161 +11,162 @@
     <script th:src="@{/js/app-config.js}"></script>
     <script th:src="@{/js/api-handler.js}"></script>
     <script th:src="@{/js/api-validator.js}"></script>
+    <!-- alert -->
+    <link rel="stylesheet" th:href="@{/css/alert.css}">
+    <script th:src="@{/js/alert.js}"></script>
 </head>
 <body>
-    <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg-secondary);">
-        <div style="width: 100%; max-width: 400px; padding: 2rem;">
-            <div style="text-align: center; margin-bottom: 2rem;">
-                <h1 style="font-size: 2.5rem; margin-bottom: 0.5rem;">🏪 CommerceHub</h1>
-                <p style="color: var(--text-secondary);">통합 커머스 플랫폼</p>
-            </div>
+<div style="position: fixed; top: 16px; right: 16px; z-index: 1000;">
+    <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()">🌙</button>
+</div>
+<div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg-secondary);">
+    <div style="width: 100%; max-width: 400px; padding: 2rem;">
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <h1 style="font-size: 2.5rem; margin-bottom: 0.5rem;">🏪 CommerceHub</h1>
+            <p style="color: var(--text-secondary);">통합 커머스 플랫폼</p>
+        </div>
 
-            <div class="card">
-                <div class="card-header" style="text-align: center;">회원가입</div>
-                <div class="card-body">
-                    <div id="error-message" class="alert alert-danger" style="margin-bottom: 1rem; display: none;">
-                        <strong>⚠️ 회원가입 실패</strong><br>
-                        <span id="error-text">오류가 발생했습니다.</span>
-                    </div>
-
-                    <div class="alert alert-info" style="margin-bottom: 1.5rem;">
-                        <strong>학습용 템플릿</strong><br>
-                        회원가입 API를 구현하면 실제로 동작합니다.
-                    </div>
-
-                    <form id="register-form" onsubmit="handleRegister(event)">
-                        <div class="form-group">
-                            <label class="form-label">이름</label>
-                            <input type="text" id="name" class="form-input" placeholder="홍길동" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">이메일</label>
-                            <input type="email" id="email" class="form-input" placeholder="example@test.com" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">비밀번호</label>
-                            <input type="password" id="password" class="form-input" placeholder="••••••••" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">비밀번호 확인</label>
-                            <input type="password" id="password-confirm" class="form-input" placeholder="••••••••" required>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">전화번호</label>
-                            <input type="tel" id="phone" class="form-input" placeholder="010-1234-5678">
-                        </div>
-
-                        <button type="submit" class="btn btn-primary" style="width: 100%;">
-                            회원가입
-                        </button>
-                    </form>
-
-                    <div style="margin-top: 1.5rem; text-align: center;">
-                        <p style="color: var(--text-secondary); margin-bottom: 1rem;">이미 계정이 있으신가요?</p>
-                        <a href="/pages/login" class="btn btn-outline" style="width: 100%;">로그인하기</a>
-                    </div>
-
-                    <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
-                        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.5rem;">
-                            <strong>테스트 계정:</strong>
-                        </p>
-                        <ul style="color: var(--text-secondary); font-size: 0.875rem; list-style: none; padding: 0;">
-                            <li>📧 admin@test.com / admin</li>
-                        </ul>
-                    </div>
+        <div class="card">
+            <div class="card-header" style="text-align: center;">회원가입</div>
+            <div class="card-body">
+                <div id="error-message" class="alert alert-danger" style="margin-bottom: 1rem; display: none;">
+                    <strong>⚠️ 회원가입 실패</strong><br>
+                    <span id="error-text">오류가 발생했습니다.</span>
                 </div>
-            </div>
 
-            <div style="text-align: center; margin-top: 2rem;">
-                <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()">🌙</button>
+                <div class="alert alert-info" style="margin-bottom: 1.5rem;">
+                    <strong>학습용 템플릿</strong><br>
+                    회원가입 API를 구현하면 실제로 동작합니다.
+                </div>
+
+                <form id="register-form" onsubmit="handleRegister(event)">
+                    <div class="form-group">
+                        <label class="form-label">이름</label>
+                        <input type="text" id="name" class="form-input" placeholder="홍길동" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">이메일</label>
+                        <input type="email" id="email" class="form-input" placeholder="example@test.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">비밀번호</label>
+                        <input type="password" id="password" class="form-input" placeholder="••••••••" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">비밀번호 확인</label>
+                        <input type="password" id="password-confirm" class="form-input" placeholder="••••••••" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">전화번호</label>
+                        <input type="tel" id="phone" class="form-input" placeholder="010-1234-5678">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">
+                        회원가입
+                    </button>
+                </form>
+
+                <div style="margin-top: 1.5rem; text-align: center;">
+                    <p style="color: var(--text-secondary); margin-bottom: 1rem;">이미 계정이 있으신가요?</p>
+                    <a href="/pages/login" class="btn btn-outline" style="width: 100%;">로그인하기</a>
+                </div>
+
+                <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+                    <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.5rem;">
+                        <strong>테스트 계정:</strong>
+                    </p>
+                    <ul style="color: var(--text-secondary); font-size: 0.875rem; list-style: none; padding: 0;">
+                        <li>📧 admin@test.com / admin</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        async function handleRegister(event) {
-            event.preventDefault();
+<script>
+    async function handleRegister(event) {
+        event.preventDefault();
 
-            const name = document.getElementById('name').value;
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const passwordConfirm = document.getElementById('password-confirm').value;
-            const phone = document.getElementById('phone').value;
-            const errorMessage = document.getElementById('error-message');
-            const errorText = document.getElementById('error-text');
+        const name = document.getElementById('name').value;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const passwordConfirm = document.getElementById('password-confirm').value;
+        const phone = document.getElementById('phone').value;
+        const errorMessage = document.getElementById('error-message');
+        const errorText = document.getElementById('error-text');
 
-            // 에러 메시지 숨기기
-            errorMessage.style.display = 'none';
+        // 에러 메시지 숨기기
+        errorMessage.style.display = 'none';
 
-            // 비밀번호 확인
-            if (password !== passwordConfirm) {
-                errorText.textContent = '비밀번호가 일치하지 않습니다.';
-                errorMessage.style.display = 'block';
+        // 비밀번호 확인
+        if (password !== passwordConfirm) {
+            showAlert('비밀번호가 일치하지 않습니다.', 'error');
+            errorMessage.style.display = 'block';
+            return;
+        }
+
+        // 테스트용 엔드포인트 설정
+        if (!window.APP_RUNTIME.config) window.APP_RUNTIME.config = {};
+        if (!window.APP_RUNTIME.config.api) window.APP_RUNTIME.config.api = {};
+        if (!window.APP_RUNTIME.config.api.endpoints) window.APP_RUNTIME.config.api.endpoints = {};
+
+        window.APP_RUNTIME.config.api.baseUrl = 'http://localhost:8080';
+        window.APP_RUNTIME.config.api.endpoints.register = {
+            url: '/api/customer/v1/customers/signup',
+            method: 'POST'
+        };
+
+        try {
+            const result = await makeApiRequest('register', { // endpointKey: 'register'
+                body: {
+                    name: name,
+                    email: email,
+                    password: password,
+                    phoneNumber: phone
+                }
+            });
+
+            console.log('회원가입 API 응답:', result);
+
+            if (!validateApiResponse('register', result)) {
+                showAlert('API 응답 형식이 올바르지 않습니다.', 'error');
                 return;
             }
 
-            // 테스트용 엔드포인트 설정
-            if (!window.APP_RUNTIME.config) window.APP_RUNTIME.config = {};
-            if (!window.APP_RUNTIME.config.api) window.APP_RUNTIME.config.api = {};
-            if (!window.APP_RUNTIME.config.api.endpoints) window.APP_RUNTIME.config.api.endpoints = {};
-
-            window.APP_RUNTIME.config.api.baseUrl = 'http://localhost:8080';
-            window.APP_RUNTIME.config.api.endpoints.register = {
-                url: '/api/customer/v1/customers/signup',
-                method: 'POST'
-            };
-
-            try {
-                const result = await makeApiRequest('register', { // endpointKey: 'register'
-                    body: {
-                        name: name,
-                        email: email,
-                        password: password,
-                        phoneNumber: phone
-                    }
-                });
-
-                console.log('회원가입 API 응답:', result);
-
-                if (!validateApiResponse('register', result)) {
-                    errorText.textContent = 'API 응답 형식이 올바르지 않습니다.';
-                    errorMessage.style.display = 'block';
-                    return;
-                }
-
-                // YML 스키마 기반 자동 검증
-                if (!validateApiResponse('register', result)) {
-                    errorText.textContent = 'API 응답 형식이 올바르지 않습니다.';
-                    errorMessage.style.display = 'block';
-                    return;
-                }
-
-                if (result.success) {
-                    // 회원가입 성공 - 로그인 페이지로 이동
-                    alert('회원가입 성공! 로그인 페이지로 이동합니다.');
-                    window.location.href = '/pages/login';
-                } else {
-                    // 회원가입 실패
-                    errorText.textContent = result.message || '회원가입에 실패했습니다.';
-                    errorMessage.style.display = 'block';
-                }
-            } catch (error) {
-                console.error('회원가입 오류:', error);
-
-                // API 미구현 (501) 에러 처리
-                if (error.message && error.message.includes('501')) {
-                    errorText.textContent = '⚠️ 회원가입 API가 아직 구현되지 않았습니다. 백엔드 구현 후 다시 시도해주세요.';
-                } else {
-                    errorText.textContent = '회원가입 중 오류가 발생했습니다.';
-                }
-                errorMessage.style.display = 'block';
+            // YML 스키마 기반 자동 검증
+            if (!validateApiResponse('register', result)) {
+                showAlert('API 응답 형식이 올바르지 않습니다.', 'error');
+                return;
             }
-        }
 
-        // 이미 로그인되어 있으면 홈으로 이동
-        if (getToken()) {
-            window.location.href = '/';
+            if (result.success) {
+                // 회원가입 성공
+                showAlert('회원가입이 완료되었습니다!', 'success');
+                setTimeout(() => {
+                    window.location.href = '/pages/login';
+                }, 2500);
+            } else {
+                // 회원가입 실패
+                showAlert('회원가입에 실패했습니다.', 'error');
+            }
+        } catch (error) {
+            console.error('회원가입 오류:', error);
+
+            // API 미구현 (501) 에러 처리
+            if (error.message && error.message.includes('501')) {
+                errorText.textContent = '⚠️ 회원가입 API가 아직 구현되지 않았습니다. 백엔드 구현 후 다시 시도해주세요.';
+            } else {
+                showAlert('회원가입 중 오류가 발생했습니다.', 'error');
+            }
+            errorMessage.style.display = 'block';
         }
-    </script>
+    }
+
+    // 이미 로그인되어 있으면 홈으로 이동
+    if (getToken()) {
+        window.location.href = '/';
+    }
+</script>
 </body>
 </html>

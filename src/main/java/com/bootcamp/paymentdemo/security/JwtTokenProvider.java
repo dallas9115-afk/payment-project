@@ -86,4 +86,17 @@ public class JwtTokenProvider {
                 .get("email", String.class);
     }
 
+    // 토큰 생성
+    public String createToken(String email) {
+        Date date = new Date();
+
+        return Jwts.builder()
+                .setSubject(email)
+                .claim("email", email)
+                .setIssuedAt(date)
+                .setExpiration(new Date(date.getTime() + TOKEN_EXPIRE_TIME))
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
 }
