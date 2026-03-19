@@ -12,8 +12,11 @@ public interface PointDetailRepository extends JpaRepository<PointDetail, Long> 
     List<PointDetail> findAllByOrderId(String orderId);
 
     List<PointDetail> findAllByCustomerIdAndRemainAmountGreaterThanOrderByExpiredAtAsc(Long userId, int i);
+<<<<<<< HEAD
 
     boolean existsByOrderId(String orderId);
 
     boolean existsByOrderIdAndType(String orderId, PointType type);
+=======
+>>>>>>> 151969f9676af4d71ebc2e19aa98dd6b2871bb5d
 }
