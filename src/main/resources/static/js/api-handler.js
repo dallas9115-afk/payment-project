@@ -66,9 +66,11 @@ async function makeApiRequest(endpointKey, options = {}) {
 
         // 401 Unauthorized 응답 시 로그인 페이지로 이동 (쿠키 삭제)
         if (response.status === 401) {
-            if (typeof removeToken === 'function') removeToken();
-            window.location.href = '/pages/login';
-            return;
+            if (!window.location.pathname.includes('/pages/login')) {
+                if (typeof removeToken === 'function') removeToken();
+                window.location.href = '/pages/login';
+                return;
+            }
         }
         const text = await response.text();
         const data = text ? JSON.parse(text) : {
