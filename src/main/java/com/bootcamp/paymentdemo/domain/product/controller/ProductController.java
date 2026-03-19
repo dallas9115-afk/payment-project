@@ -21,7 +21,13 @@ public class ProductController {
 
     private final ProductService productService;
 
-     // 단건 조회
+
+    // 이거는 선택사항 일단 구현은 해놨다.
+    //상품 단건 조회 필요없을수도 있다.
+    //결제 화면을 띄울것이다.
+    //서버 요청이 2개도  가능.
+
+    // 단건 조회
     @GetMapping("/products/{productId}")
     public ResponseEntity<ProductOneResponse>getOneProduct(
             @PathVariable Long productId

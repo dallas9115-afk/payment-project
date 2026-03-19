@@ -21,6 +21,7 @@ public class OrderController {
 
     private final OrderService orderService;
     // 주문 생성
+    // orderId를 프론트엔드 규격에따라서 새롭게 생성햇기때문에 String orderId로 받는다.
     @PostMapping("/orders/{customerId}")
     public ResponseEntity<CreateOrderResponse> createOrder(
             @PathVariable Long customerId,
@@ -31,23 +32,27 @@ public class OrderController {
 
     }
 
+
+
+     //    @GetMapping("/orders/{orderId}")
     // 주문 상세 조회
-    // orderId를 프론트엔드 규격에따라서 새롭게 생성햇기때문에 String orderId로 받는다.
-    @GetMapping("/orders/{orderId}")
+        @GetMapping("/orders/{orderId}/items/{productId}")
     public ResponseEntity<OrderDetailResponse> getOrder(
-            @PathVariable String orderId
+                @PathVariable String orderId,
+                @PathVariable Long productId
+
     )
     {
-        return ResponseEntity.ok(orderService.getorderdetail(orderId));
+        return ResponseEntity.ok(orderService.getOrderDetail(orderId,productId));
 
     }
 
-    // 주문 내역 조회
+    // 주문 목록(내역) 조회
     @GetMapping("/orders/customer/{customerId}")
     public ResponseEntity<List<OrderListResponse>> getOrderList(
             @PathVariable Long customerId
     ) {
-        return ResponseEntity.ok(orderService.getorderlist(customerId));
+        return ResponseEntity.ok(orderService.getOrderList(customerId));
     }
 
 }

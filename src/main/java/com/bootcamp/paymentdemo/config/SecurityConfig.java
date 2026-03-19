@@ -47,7 +47,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(toStaticResources().atCommonLocations()).permitAll() // 정적 리소스
                         .requestMatchers(HttpMethod.GET, "/", "/pages/**").permitAll() // 템플릿 페이지
-                        .requestMatchers("/api/customer/v1/customers/signup", "/api/customer/v1/customers/login").permitAll() // 공개 인증 API
+                        .requestMatchers(
+                                "/api/customer/v1/customers/signup",
+                                "/api/customer/v1/customers/login",
+                                "/api/auth/login",
+                                "/api/auth/register"
+                        ).permitAll() // 공개 인증 API
                         .requestMatchers("/api/public/**").permitAll() // 공개 API
                         .requestMatchers("/actuator/**").permitAll() // 헬스체크
                         .requestMatchers("/api/**").authenticated() // 나머지 API 인증 필요
@@ -61,17 +66,6 @@ public class SecurityConfig {
     @Bean
     public static PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    public UserDetailsService userDetailsService(PasswordEncoder passwordEncoder) {
-        UserDetails admin = User.builder()
-                .username("admin@test.com")
-                .password(passwordEncoder.encode("admin"))
-                .roles("USER", "ADMIN")
-                .build();
-
-        return new InMemoryUserDetailsManager(admin);
     }
 
     @Bean

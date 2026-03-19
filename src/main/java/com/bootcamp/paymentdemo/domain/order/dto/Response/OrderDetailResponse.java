@@ -8,19 +8,23 @@ import java.util.List;
 @Getter
 public class OrderDetailResponse {
 
-private final String orderNumber;
-private final String orderId;
-private final Integer totalAmount;
-private final Integer finalAmount;
-private final String status;
-private final List<OrderItem> items;
 
-    public OrderDetailResponse(String orderNumber, String orderId, Integer totalAmount, Integer finalAmount, String status, List<OrderItem> items) {
+    private final String orderNumber;
+    private final String orderId;
+    private final  Long productId;
+    private final String productName;
+    private final Integer price;
+    private final Integer quantity;
+    private final Integer itemTotalAmount;
+
+
+    public OrderDetailResponse(String orderNumber, String orderId, Long productId, String productName, Integer price, Integer quantity, Integer itemTotalAmount) {
         this.orderNumber = orderNumber;
         this.orderId = orderId;
-        this.totalAmount = totalAmount;
-        this.finalAmount = finalAmount;
-        this.status = status;
-        this.items = items;
+        this.productId = productId;
+        this.productName = productName;
+        this.price = price;
+        this.quantity = quantity;
+        this.itemTotalAmount = itemTotalAmount;
     }
 }

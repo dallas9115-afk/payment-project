@@ -56,12 +56,11 @@ public class OrderService {
         // 따라서 request.getItems()를 순회하면서 상품별 주문 정보를 처리한다.
         for (CreateOrderRequest.OrderItem itemRequest : request.getItems()) {
 
-
             // 프론트가 보낸 productId로 실제 상품이 존재하는지 조회
             // 존재하지 않으면 예외 발생
             Product product = productRepository.findById(itemRequest.getProductId())
                     .orElseThrow(() -> new IllegalArgumentException(
-                            "없는 상품입니다. id는 " + itemRequest.getProductId()
+                            "없는 상품입니다. 이 id는 " + itemRequest.getProductId()
                     ));
 
             OrderItem orderItem = new OrderItem(savedOrder, product, itemRequest.getQuantity());
@@ -79,37 +78,40 @@ public class OrderService {
                 savedOrder.getOrderNumber()
         );
 
-
     }
 
 
     // 주문 상세 조회
     @Transactional(readOnly = true)
-    public OrderDetailResponse getorderdetail(String orderId) {
+    public OrderDetailResponse getOrderDetail(String orderId,Long productId) {
         // 1. 주문 조회
-        Order order = orderRepository.findByOrderId(orderId)
+        OrderItem orderItem = orderItemRepository.findByOrderOrderIdAndProductId(orderId,productId)
                 .orElseThrow(() -> new IllegalArgumentException("주문 없다."));
 
-        // 2. 주문 상품 조회
-        List<OrderItem> orderItems=orderItemRepository.findByOrder(order);
-
         return new OrderDetailResponse(
-                order.getOrderNumber(),
-                order.getOrderId(),
-                order.getTotalAmount(),
-                order.getTotalAmount(),
-                order.getStatus().name(),
-                orderItems
+                orderItem.getOrder().getOrderNumber(),
+                orderItem.getOrder().getOrderId(),
+                orderItem.getProduct().getId(),
+                orderItem.getProduct().getName(),
+                orderItem.getProductPrice(),
+                orderItem.getQuantity(),
+                orderItem.getProductPrice() * orderItem.getQuantity()
         );
     }
 
     // 주문 목록 조회
     @Transactional(readOnly = true)
-    public List<OrderListResponse> getorderlist(Long customerId) {
+    public List<OrderListResponse> getOrderList(Long customerId) {
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new IllegalArgumentException("고객 없음"));
 
+
         List<Order> orders = orderRepository.findByCustomer(customer);
+
+        if (orders.isEmpty()) {
+            throw new IllegalArgumentException("주문 내역이 없습니다.");
+        }
+
         List<OrderListResponse> responseList = new ArrayList<>();
 
         for (Order order : orders) {
@@ -117,7 +119,8 @@ public class OrderService {
                     order.getOrderNumber(),
                     order.getOrderId(),
                     order.getTotalAmount(),   // 수정 필요. total
-                    order.getTotalAmount(),   // 수정 필요.final
+                    order.getTotalAmount(),// 수정 필요.final
+                    "KRW",
                     order.getStatus().name(),
                     order.getCreatedAt()
             );
@@ -128,7 +131,7 @@ public class OrderService {
         return responseList;
     }
 
-    // orderid tsid활용. 생성 시간에 따라 생성됨. String.
+    // orderId tsid활용. 생성 시간에 따라 생성됨. String.
     private String generateOrderId() {
         return "OID-" + TsidCreator.getTsid().toString();
     }
