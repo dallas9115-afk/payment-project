@@ -20,7 +20,7 @@
 #    클라이언트는 방법 2, 3을 사용하면 수정 불필요!
 
 api:
-  base-url: http://localhost:8080
+  base-url: ${CLIENT_API_BASE_URL:http://localhost:8080}
 
   # API 엔드포인트 및 계약 정의
   endpoints:
@@ -223,8 +223,8 @@ api:
     # 결제 (Payment)
     # ========================================
     create-payment:
-      url:
-      method:
+      url: /api/payments/v1/payments/checkout-ready
+      method: POST
       description: 결제 시작 요청 (DB에 PENDING 상태로 등록, PortOne SDK 호출 전에 먼저 호출)
       request:
         fields:
@@ -254,14 +254,14 @@ api:
             - name: status
               type: string
               required: false
-              description: 결제 상태 (PENDING)
+              description: 결제 상태 (READY)
 
     confirm-payment:
-      url:
-      method:
+      url: /api/payments/v1/payments/{paymentId}/confirm
+      method: POST
       description: 결제 확정 (PortOne 결제 검증 및 주문 상태 업데이트)
       pathParams:
-        - name:
+        - name: paymentID
           description: 결제 ID
       response:
         body:
@@ -278,13 +278,18 @@ api:
               type: string
               required: false
               description: 변경된 주문 상태
+#            - name: message
+#              type: string
+#              required: false
+#              description: 처리 결과 메시지
+
 
     cancel-payment:
-      url:
-      method:
+      url: /api/payments/v1/payments/{paymentId}/cancel
+      method: POST
       description: 결제 취소/환불 (PortOne 결제 취소 및 주문 상태 업데이트)
       pathParams:
-        - name:
+        - name: paymentID
           description: 결제 ID
       request:
         fields:

@@ -1,6 +1,6 @@
 package com.bootcamp.paymentdemo.global.error;
 
-import com.bootcamp.paymentdemo.global.common.ApiResponse;
+import com.bootcamp.paymentdemo.global.common.dto.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

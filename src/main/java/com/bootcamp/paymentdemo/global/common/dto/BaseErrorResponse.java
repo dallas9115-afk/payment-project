@@ -1,4 +1,4 @@
-package com.bootcamp.paymentdemo.global.common;
+package com.bootcamp.paymentdemo.global.common.dto;
 
 public record BaseErrorResponse(
         int status,

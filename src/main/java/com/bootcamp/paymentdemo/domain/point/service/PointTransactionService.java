@@ -5,10 +5,13 @@ import com.bootcamp.paymentdemo.domain.customer.entity.Customer;
 import com.bootcamp.paymentdemo.domain.customer.entity.UserMembership;
 import com.bootcamp.paymentdemo.domain.customer.repository.CustomerRepository;
 import com.bootcamp.paymentdemo.domain.customer.repository.UserMembershipRepository;
+import com.bootcamp.paymentdemo.domain.customer.service.MembershipService;
+import com.bootcamp.paymentdemo.domain.order.entity.Order;
+import com.bootcamp.paymentdemo.domain.order.entity.OrderStatus;
+import com.bootcamp.paymentdemo.domain.order.repository.OrderRepository;
 import com.bootcamp.paymentdemo.domain.point.entity.*;
 import com.bootcamp.paymentdemo.domain.point.repository.PointDetailRepository;
 import com.bootcamp.paymentdemo.domain.point.repository.PointHistoryRepository;
-import com.bootcamp.paymentdemo.domain.point.repository.PointTransactionRepository;
 import com.bootcamp.paymentdemo.global.error.CommonError;
 import com.bootcamp.paymentdemo.global.error.CommonException;
 import lombok.Builder;
@@ -29,11 +32,12 @@ import java.util.List;
 @Slf4j
 public class PointTransactionService {
 
-    private final PointTransactionRepository pointTransactionRepository;
     private final PointDetailRepository pointDetailRepository;
     private final PointHistoryRepository pointHistoryRepository;
     private final CustomerRepository customerRepository;
     private final UserMembershipRepository userMembershipRepository;
+    private final OrderRepository orderRepository;
+    private final MembershipService membershipService;
 
 
     //잔액 계산 method
@@ -104,11 +108,21 @@ public class PointTransactionService {
     //결제 후 포인트 적립
     @Transactional
     public void earnPointAfterPayment(Long customerId, Long orderId, Long paidAmount) {
-        // 1. 유저 멤버십 및 등급 정책 조회
+
+        // 1. [멱등성 체크] 해당 주문번호로 기 적립된 내역이 있는지 확인.
+        // PointDetail에 orderId에 있으니 이를 활용함.
+        boolean alreadyEarned = pointDetailRepository.existsByOrderId(String.valueOf(orderId));
+        if (alreadyEarned) {
+            log.warn("이미 적립이 완료된 주문입니다. (OrderId : {}", orderId);
+            return;
+        }
+
+
+        // 2. 유저 멤버십 및 등급 정책 조회
         UserMembership membership = userMembershipRepository.findByCustomerId(customerId)
                 .orElseThrow(() -> new IllegalStateException("존재하지 않는 사용자 입니다."));
 
-        // 2. [정밀 계산] BigDecimal을 이용한 등급별 적립금 산출
+        // 3. [정밀 계산] BigDecimal을 이용한 등급별 적립금 산출
         BigDecimal amount = BigDecimal.valueOf(paidAmount);
         BigDecimal rate = BigDecimal.valueOf(membership.getGradePolicy().getPointRate());
         Long earnedAmount = amount.multiply(rate)
@@ -118,12 +132,12 @@ public class PointTransactionService {
         log.info("유저 {}({}) 적립 계산: {}원 * {}% = {}P",
                 customerId, membership.getGradePolicy().getGradeName(), paidAmount, rate.multiply(BigDecimal.valueOf(100)), earnedAmount);
 
-        // 3. [스냅샷] customer의 현재 잔액 업데이트 (조회 성능용)
+        // 4. [스냅샷] customer의 현재 잔액 업데이트 (조회 성능용)
         Customer customer = membership.getCustomer();
         customer.addPoint(earnedAmount);
 
 
-        // 4. [상세 내역] PointDetail 저장
+        // 5. [상세 내역] PointDetail 저장
         PointDetail detail = PointDetail.builder()
                 .customerId(customerId)
                 .orderId(String.valueOf(orderId))
@@ -135,7 +149,7 @@ public class PointTransactionService {
 
         pointDetailRepository.save(detail);
 
-        // 5. [이력 기록] PointHistory 저장 (PointTransaction 대신 History로 통합 관리 권장)
+        // 6. [이력 기록] PointHistory 저장 (PointTransaction 대신 History로 통합 관리 권장)
         PointHistory history = PointHistory.builder()
                 .customer(customer)
                 .pointDetail(detail)
@@ -152,20 +166,40 @@ public class PointTransactionService {
     // 포인트 환불
     @Transactional
     public void refundUsedPoints(String orderId) {
-        // 1. 오타 수정 및 타입 일치 (PointType.USED 사용)
-        List<PointHistory> usageHistories = pointHistoryRepository.findAllByOrderIdAndType(orderId, PointType.USED);
+        // 1. 멱등성 확인
+        if(pointHistoryRepository.existsByOrderIdAndType(orderId, PointType.ROLLBACK)) {
+            log.warn("이미 포인트 환원 처리가 완료된 주문입니다. (OrderId:{})", orderId);
+            return;
+        }
 
+        // 2. 주문 상태 검증
+        Order order = orderRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new IllegalStateException("주문 정보를 찾을 수 없습니다."));
+
+        if (!order.getStatus().equals(OrderStatus.PAID)) {
+            throw new IllegalStateException("환불 가능한 상태의 주문이 아닙니다.");
+        }
+
+
+        // 3. 오타 수정 및 타입 일치 (PointType.USED 사용)
+        List<PointHistory> usageHistories = pointHistoryRepository.findAllByOrderIdAndType(orderId, PointType.USED);
         if (usageHistories.isEmpty()) {
             log.info("해당 주문({})에 대한 포인트 사용 내역이 없습니다.", orderId);
             return;
         }
 
-        // 2. getCustomerId() 대신 getCustomer().getCustomer() 사용
+        // 4. getCustomerId() 대신 getCustomer().getCustomer() 사용
         Long customerId = usageHistories.get(0).getCustomer().getId();
+
+        // 5. 유저 스냅샷 복구
+        // findByIdWithLock이 Optional을 반환하는지 repository에서 확인 필수!
+        Customer customer = customerRepository.findByIdWithLock(customerId)
+                .orElseThrow(() -> new IllegalStateException("존재하지 않는 유저입니다."));  // TODO: 바꿔야함
+
 
         long totalRestoredAmount = 0;
 
-        // 3. 복구 루프
+        // 6. 복구 루프
         for (PointHistory history : usageHistories) {
             PointDetail detail = history.getPointDetail();
             if (detail != null) {
@@ -175,35 +209,40 @@ public class PointTransactionService {
             }
         }
 
-        // 4. 유저 스냅샷 복구
-        // findByIdWithLock이 Optional을 반환하는지 repository에서 확인 필수!
-        Customer customer = (Customer) customerRepository.findByIdWithLock(customerId)
-                .orElseThrow(() -> new IllegalStateException("존재하지 않는 유저입니다."));  // TODO: 바꿔야함
-
         customer.addPoint(totalRestoredAmount);
 
-        // 5. ROLLBACK 이력 남기기
-        PointTransactionEntity refundTx = PointTransactionEntity.builder()
-                .customerId(customerId)
-                .orderId(Long.parseLong(orderId))
+        // 7. ROLLBACK 이력 남기기
+        pointHistoryRepository.save(PointHistory.builder()
+                .customer(customer)
+                .pointDetail(null) // 전체 복구이므로 특정 detail에 종속시키지 않거나 루프 내에서 기록
                 .type(PointType.ROLLBACK)
-                .points((int) totalRestoredAmount)
-                .balanceAfter(customer.getCurrentPoint().intValue())
-                .description("주문 취소에 따른 포인트 복구: " + orderId)
-                .build();
+                .amount(totalRestoredAmount)
+                .beforePoint(customer.getCurrentPoint() - totalRestoredAmount)
+                .afterPoint(customer.getCurrentPoint())
+                .orderId(orderId) // String 그대로!
+                .reason("주문 취소에 따른 포인트 복구: " + orderId)
+                .build());
 
-        pointTransactionRepository.save(refundTx);
+        // 8. 등급 재계산
+        membershipService.refreshUserMembership(customerId);
+        log.info("유저 {} 환불에 따른 등급 재계산 완료", customerId);
     }
 
 
     // 포인트 회수 <- 포인트 회수 정책 고민 필요
     @Transactional
     // 기본 베이스
-    public void cancelEarnedPoints2(String orderId) {
+    public void cancelEarnedPoints(String orderId) {
 
-        // 1. 해당 주문으로 적립되었던 상세 내역(PointDetail) 들을 찾음
+        //1. [멱등성 체크] 이미 회수 처리되었는지 확인
+        if(pointHistoryRepository.existsByOrderIdAndReasonContaining(orderId, "회수")) {
+            log.warn("이미 적립 회수 처리가 완료된 주문입니다. (OrderId: {})", orderId);
+            return;
+
+        }
+
+        // 2. 해당 주문으로 적립되었던 상세 내역(PointDetail) 들을 찾음
         List<PointDetail> earnedDetails = pointDetailRepository.findAllByOrderId(orderId);
-
         if(earnedDetails.isEmpty()) {
             log.info("해당 주문({})으로 적립된 포인트 내역이 없습니다.", orderId);
             return;
@@ -212,7 +251,7 @@ public class PointTransactionService {
         long totalCancelAmount = 0;
         Long customerId = earnedDetails.get(0).getCustomerId();
 
-        // 2. 적립되었던 포인트 뭉치들을 '취소' 상태로 변경하고 회수할 총액 계산
+        // 3. 적립되었던 포인트 뭉치들을 '취소' 상태로 변경하고 회수할 총액 계산
         for (PointDetail detail : earnedDetails) {
             // 이미 사용된 포인트라면 회수 시 잔액이 부족해질 수 있음을 인지해야 함
             totalCancelAmount += detail.getInitialAmount();
@@ -224,27 +263,41 @@ public class PointTransactionService {
             // 이 부분은 수정중입니다! 취소 부분은 생각보다 고려할게 많아서링...
         }
 
-        // 3. 유저 스냅샷 잔액에서 회수 (addPoint에 음수를 넣거나 deductPoint 활용)
+        // 4. 유저 스냅샷 잔액에서 회수 (addPoint에 음수를 넣거나 deductPoint 활용)
         Customer customer = (Customer) customerRepository.findByIdWithLock(customerId)
                 .orElseThrow(() -> new IllegalStateException("회수 대상 유저가 없습니다."));
 
         // 유저 잔액이 회수액보다 적더라도 일단 차감 (마이너스 잔액 허용 여부는 정책에 따라 결정)
         customer.deductPoint(totalCancelAmount);
 
-        // 4. 이력 남기기 (PointType.SPENT 또는 새로운 CANCEL 타입 활용)
-        PointTransactionEntity cancelTx = PointTransactionEntity.builder()
-                .customerId(customerId)
-                .orderId(Long.parseLong(orderId))
+        // 5. 이력 남기기 (PointType.SPENT 또는 새로운 CANCEL 타입 활용)
+        pointHistoryRepository.save(PointHistory.builder()
+                .customer(customer)
                 .type(PointType.USED) // 회수는 포인트가 나가는 것이므로 USED 또는 적절한 타입 사용
-                .points((int) -totalCancelAmount)
-                .balanceAfter(customer.getCurrentPoint().intValue())
-                .description("주문 취소에 따른 적립 포인트 회수: " + orderId)
-                .build();
-
-        pointTransactionRepository.save(cancelTx);
+                .amount(-totalCancelAmount)
+                .beforePoint(customer.getCurrentPoint() + totalCancelAmount)
+                .afterPoint(customer.getCurrentPoint())
+                .orderId(orderId)
+                .reason("주문 취소에 따른 적립 포인트 회수: " + orderId)
+                .build());
 
         log.info("주문 {} 적립 회수 완료: 총 {}P 차감됨", orderId, totalCancelAmount);
+
+        // 6. 등급 재계산
+        membershipService.refreshUserMembership(customerId);
+        log.info("유저 {} 환불에 따른 등급 재계산 완료", customerId);
     }
+
+    // 단순 잔액 조회
+    @Transactional(readOnly = true)
+    public Long getPointBalance(Long customerId) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new IllegalStateException("유저가 없습니다.")); //
+        return customer.getCurrentPoint(); //
+    }
+
+
+
 
 //    @Transactional
 //    // 1번방법 : 차감해서 환불해주기

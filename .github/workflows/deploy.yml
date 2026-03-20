@@ -51,6 +51,10 @@ jobs:
               -e RDS_HOSTNAME="${{ secrets.RDS_HOSTNAME }}" \
               -e RDS_USERNAME="${{ secrets.RDS_USERNAME }}" \
               -e RDS_PASSWORD="${{ secrets.RDS_PASSWORD }}" \
+              -e PORTONE_API_SECRET="${{ secrets.PORTONE_API_SECRET }}" \
+              -e PORTONE_STORE_ID="${{ secrets.PORTONE_STORE_ID }}" \
+              -e PORTONE_CHANNEL_KG="${{ secrets.PORTONE_CHANNEL_KG }}" \
+              -e PORTONE_CHANNEL_TOSS="${{ secrets.PORTONE_CHANNEL_TOSS }}" \
               ${{ secrets.DOCKER_USERNAME }}/infra-skeleton:latest
             
             echo "4. 사용하지 않는 찌꺼기 이미지 삭제 (용량 확보)"

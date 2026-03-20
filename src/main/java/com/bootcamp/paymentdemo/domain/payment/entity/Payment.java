@@ -34,9 +34,9 @@ public class Payment extends BaseEntity {
         @JoinColumn(nullable = false)
         private Order order;
 
-        // PortOne에서 발급한 결제 고유 ID
-        @Column(unique = true)
-        private String paymentKey;
+        // 결제고유ID (포트원 요청/조회 키로사용)
+        @Column(unique = true, nullable = false)
+        private String paymentId;
 
         @Column(nullable = false)
         private Long amount;
@@ -47,38 +47,59 @@ public class Payment extends BaseEntity {
 
         @Column
         private LocalDateTime paidAt;
+
+        @Column
+        private LocalDateTime expiresAt; // 결제창 그냥닫은경우 주문취소로 바꾸는용도
         @Column
         private LocalDateTime refundedAt;
 
-        public static Payment create(Order order, String paymentKey, Long amount) {
-                if (order == null) {
-                        throw new IllegalArgumentException("Order cannot be null");
-                }
+        public static Payment of(
+                Order order, Long totalAmount,String paymentId) {
+
                 Payment payment = new Payment();
                 payment.order = order;
-                payment.paymentKey = paymentKey;
-                payment.amount = amount;
+                payment.amount = totalAmount;
+                payment.paymentId = paymentId;
                 payment.status = PaymentStatus.READY;
+                payment.expiresAt= LocalDateTime.now().plusMinutes(10);
                 return payment;
         }
+
 
         public void confirm() {
                 this.status = PaymentStatus.PAID;
                 this.paidAt = LocalDateTime.now();
+        }
+        public void ready(){
+                this.status = PaymentStatus.READY;
         }
 
         public void fail() {
                 this.status = PaymentStatus.FAILED;
         }
 
+        public void refund() {
+                this.status = PaymentStatus.REFUNDED;
+                this.refundedAt = LocalDateTime.now();
+        }
 
         public boolean isRefundable() {
                 return this.status == PaymentStatus.PAID;
         }
 
         public boolean isAlreadyProcessed() {
-                return this.status == PaymentStatus.PAID || this.status == PaymentStatus.FAILED;
+                return this.status == PaymentStatus.PAID ||
+                        this.status == PaymentStatus.FAILED ||
+                        this.status == PaymentStatus.REFUNDED ||
+                        this.status == PaymentStatus.EXPIRED;
+        }
+
+        public boolean isRefunded() {
+                return this.status == PaymentStatus.REFUNDED;
         }
 
 
+        public void expire() {
+                this.status = PaymentStatus.EXPIRED;
+        }
 }

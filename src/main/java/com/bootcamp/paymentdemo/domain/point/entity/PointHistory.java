@@ -25,7 +25,6 @@ public class PointHistory extends BaseEntity {
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
 
-
     // 포인트 이력 연결 : 해당 이력이 어떤 포인트 에서 발생했는지 확인
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "point_detail_id")
@@ -40,7 +39,6 @@ public class PointHistory extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PointType type;
-
 
     // 포인트의 변동액 기록
     @Column(nullable = false)
