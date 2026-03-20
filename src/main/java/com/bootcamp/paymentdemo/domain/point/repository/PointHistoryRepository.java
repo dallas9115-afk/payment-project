@@ -9,10 +9,8 @@ import java.util.List;
 public interface PointHistoryRepository extends JpaRepository<PointHistory, Long> {
 
     List<PointHistory> findAllByOrderIdAndType(String orderId, PointType pointType);
-<<<<<<< HEAD
 
     boolean existsByOrderIdAndType(String orderId, PointType type);
     boolean existsByOrderIdAndReasonContaining(String orderId, String keyword);
-=======
->>>>>>> 151969f9676af4d71ebc2e19aa98dd6b2871bb5d
+
 }

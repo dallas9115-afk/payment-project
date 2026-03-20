@@ -288,6 +288,17 @@ public class PointTransactionService {
         log.info("유저 {} 환불에 따른 등급 재계산 완료", customerId);
     }
 
+    // 단순 잔액 조회
+    @Transactional(readOnly = true)
+    public Long getPointBalance(Long customerId) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new IllegalStateException("유저가 없습니다.")); //
+        return customer.getCurrentPoint(); //
+    }
+
+
+
+
 //    @Transactional
 //    // 1번방법 : 차감해서 환불해주기
 //    public void processNetRefund(String orderId, Long paidCashAmount) {
