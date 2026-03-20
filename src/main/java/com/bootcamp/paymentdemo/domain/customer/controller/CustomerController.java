@@ -8,6 +8,7 @@ import com.bootcamp.paymentdemo.domain.customer.dto.response.MembershipGradePoli
 import com.bootcamp.paymentdemo.domain.customer.service.CustomerService;
 import com.bootcamp.paymentdemo.domain.customer.service.MembershipService;
 import com.bootcamp.paymentdemo.global.common.ApiResponse;
+import com.bootcamp.paymentdemo.global.common.dto.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

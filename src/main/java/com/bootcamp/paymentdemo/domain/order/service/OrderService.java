@@ -13,6 +13,8 @@ import com.bootcamp.paymentdemo.domain.order.repository.OrderItemRepository;
 import com.bootcamp.paymentdemo.domain.order.repository.OrderRepository;
 import com.bootcamp.paymentdemo.domain.product.entity.Product;
 import com.bootcamp.paymentdemo.domain.product.repository.ProductRepository;
+import com.bootcamp.paymentdemo.global.error.CommonError;
+import com.bootcamp.paymentdemo.global.error.CommonException;
 import com.github.f4b6a3.tsid.TsidCreator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -40,7 +42,7 @@ public class OrderService {
     public CreateOrderResponse save(Long customerId,CreateOrderRequest request) {
         // 1. 고객 조회
         Customer customer = customerRepository.findById(customerId)
-                .orElseThrow(() -> new IllegalArgumentException("고객 없음"));
+                .orElseThrow(() -> new CommonException(CommonError.CUSTOMER_NOT_FOUND));
 
         // 2. 주문 아이디, 주문 번호 TSID, UUID 활용.
         String orderId = generateOrderId();

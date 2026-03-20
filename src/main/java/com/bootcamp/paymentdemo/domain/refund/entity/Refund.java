@@ -1,7 +1,7 @@
 package com.bootcamp.paymentdemo.domain.refund.entity;
 
 import com.bootcamp.paymentdemo.domain.payment.entity.Payment;
-import com.bootcamp.paymentdemo.domain.payment.enums.PaymentStatus;
+import com.bootcamp.paymentdemo.domain.refund.enums.RefundStatus;
 import com.bootcamp.paymentdemo.global.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -41,12 +41,43 @@ public class Refund extends BaseEntity {
 
         @Enumerated(EnumType.STRING)
         @Column(nullable = false)
-        private PaymentStatus status;
+        private RefundStatus status;
 
         @Column(nullable = false)
         private LocalDateTime processedAt;
 
+        public static Refund createRequested(Payment payment, Long refundAmount, String reason) {
+                Refund refund = new Refund();
+                refund.payment = payment;
+                refund.refundAmount = refundAmount;
+                refund.reason = reason;
+                refund.status = RefundStatus.REQUESTED;
+                refund.processedAt = LocalDateTime.now();
+                return refund;
+        }
 
+        public static Refund createRefunded(Payment payment, Long refundAmount, String reason) {
+                Refund refund = new Refund();
+                refund.payment = payment;
+                refund.refundAmount = refundAmount;
+                refund.reason = reason;
+                refund.status = RefundStatus.REFUNDED;
+                refund.processedAt = LocalDateTime.now();
+                return refund;
+        }
 
+        public void markRetrying() {
+                this.status = RefundStatus.RETRYING;
+                this.processedAt = LocalDateTime.now();
+        }
 
+        public void markRefunded() {
+                this.status = RefundStatus.REFUNDED;
+                this.processedAt = LocalDateTime.now();
+        }
+
+        public void markFailed() {
+                this.status = RefundStatus.FAILED;
+                this.processedAt = LocalDateTime.now();
+        }
 }
