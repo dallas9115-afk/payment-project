@@ -3,7 +3,7 @@ package com.bootcamp.paymentdemo.domain.point.controller;
 import com.bootcamp.paymentdemo.domain.customer.service.MembershipService;
 import com.bootcamp.paymentdemo.domain.point.dto.Response.CustomerPointMembershipResponse;
 import com.bootcamp.paymentdemo.domain.point.service.PointTransactionService;
-import com.bootcamp.paymentdemo.global.common.ApiResponse;
+import com.bootcamp.paymentdemo.global.common.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;

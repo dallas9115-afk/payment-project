@@ -10,6 +10,7 @@ import com.bootcamp.paymentdemo.domain.point.repository.PointDetailRepository;
 import com.bootcamp.paymentdemo.domain.point.repository.PointHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -33,12 +34,12 @@ public class PointExpirationBatch {
         LocalDateTime now = LocalDateTime.now();
         int pageSize = 500;
         long totalExpiredCount = 0;
+        PageRequest pageRequest = PageRequest.of(0, pageSize);
 
         while (true) {
             // remainAmount >0이고 만료일이 지난 데이터 500건 조회
             // 처리 후 remainAmount가 0이 되므로 항상 0 페이지를 조회
-            Slice<PointDetail> expiredSlice = pointDetailRepository
-                    .findAllByAtBeforeAndRemainAmountGreaterThan(now, 0, PageRequest.of(0,pageSize));
+            Slice<PointDetail> expiredSlice = pointDetailRepository.findAllByExpiredAtBeforeAndRemainAmountGreaterThan(now, 0, pageRequest);
 
             if (expiredSlice.isEmpty()) break;
 

@@ -20,7 +20,11 @@ public interface PointDetailRepository extends JpaRepository<PointDetail, Long> 
 
     boolean existsByOrderIdAndType(String orderId, PointType type);
 
-    Slice<PointDetail> findAllByAtBeforeAndRemainAmountGreaterThan(LocalDateTime now, int i, PageRequest of);
+    Slice<PointDetail> findAllByExpiredAtBeforeAndRemainAmountGreaterThan(
+            LocalDateTime dateTime,
+            int amount,
+            PageRequest pageable
+    );
 
     Long sumRemainAmountByCustomerId(Long customerId);
 }
