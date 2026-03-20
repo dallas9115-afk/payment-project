@@ -45,7 +45,7 @@ jobs:
             echo "2. 최신 이미지 다운로드"
             sudo docker pull ${{ secrets.DOCKER_USERNAME }}/infra-skeleton:latest
             
-            echo "3. 도커 컨테이너 실행 (RDS 환경변수 주입)"
+            echo "3. 도커 컨테이너 실행 (RDS 및 PortOne 환경변수 주입)"
             #  -e 옵션을 통해 깃허브 시크릿 값을 도커 컨테이너 내부로 전달합니다.
             sudo docker run -d --name infra-skeleton -p 8080:8080 \
               -e RDS_HOSTNAME="${{ secrets.RDS_HOSTNAME }}" \
