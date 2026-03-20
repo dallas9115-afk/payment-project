@@ -63,6 +63,13 @@ public class PortOnePaymentInfoResponse {
         return status != null && "PAID".equalsIgnoreCase(status);
     }
 
+    public boolean isTerminalFailureStatus() {
+        return status != null && (
+                "FAILED".equalsIgnoreCase(status) ||
+                        "CANCELLED".equalsIgnoreCase(status)
+        );
+    }
+
     /**
      * 포트원 응답에서 "사용자에게 보여줄 수 있는 실패 사유"를 최대한 추려서 반환합니다.
      */

@@ -55,9 +55,11 @@ public class PaymentLifecycleService {
     // 포트원결제금액과 DB결제금액 검증 상점ID검증
     public void validateApprovedPayment(Payment payment, PortOnePaymentInfoResponse portOnePayment) {
         Long paidAmount = portOnePayment.resolveTotalAmount();
-        if (paidAmount == null || !paidAmount.equals(payment.getAmount())) {
+        Long expectedAmount = payment.getOrder().getTotalAmount().longValue();
+
+        if (paidAmount == null || !paidAmount.equals(expectedAmount)) {
             throw new IllegalStateException(
-                    "결제 금액 불일치. expected=" + payment.getAmount() + ", actual=" + paidAmount
+                    "결제 금액 불일치. expected=" + expectedAmount + ", actual=" + paidAmount
             );
         }
 
@@ -161,6 +163,33 @@ public class PaymentLifecycleService {
             if (isCancelledStatus(cancelStatus)) { // 취소 성공
                 payment.refund();  // 페이먼트 상태변경
 
+                // TODO: 주문 도메인 팀 구현 필요
+                // - 입력값: payment.getOrder().getId()
+                // - 책임: 환불/취소 성공 후 주문 상태를 CANCELLED(또는 환불 상태)로 변경
+                // - 규칙:
+                //   1) 이미 취소된 주문이면 멱등 처리
+                //   2) 취소 불가 상태 정책이 있으면 예외 전파
+                // orderService.cancelOrder(payment.getOrder().getId());
+
+                // TODO: 상품/재고 도메인 팀 구현 필요
+                // - 입력값: payment.getOrder().getId()
+                // - 책임: 이 주문 때문에 차감했던 재고를 다시 복구
+                // - 규칙:
+                //   1) 주문상품 목록 기준으로 각 상품 재고 복구
+                //   2) 중복 복구가 일어나지 않도록 멱등 처리 필요
+                // inventoryService.restoreStockByOrder(payment.getOrder().getId());
+
+                // TODO: 포인트 도메인 팀 구현 필요
+                // - 입력값: payment.getOrder().getOrderId() 또는 order PK
+                // - 책임:
+                //   1) 사용 포인트가 있었다면 환원
+                //   2) 이미 적립된 포인트가 있었다면 회수 또는 무효화
+                // - 규칙:
+                //   1) 중복 환원/중복 회수가 발생하지 않도록 멱등 처리
+                //   2) 포인트 스냅샷과 이력을 함께 맞춰야 함
+                // pointTransactionService.refundUsedPoints(payment.getOrder().getOrderId());
+
+
                 if (cancelFlow == CancelFlow.COMPENSATION) {
                     upsertRefundForCompensation(payment, reason);
                     return "보상 취소 성공. cancelStatus=" + cancelStatus;
@@ -245,6 +274,7 @@ public class PaymentLifecycleService {
                         () -> refundRepository.save(Refund.createRefunded(payment, payment.getAmount(), reason))
                 );
     }
+
     // 환불성공 상태변경
     private void markExistingRefundRefunded(Payment payment) {
         Refund refund = refundRepository.findByPayment(payment).orElseThrow(
@@ -252,6 +282,7 @@ public class PaymentLifecycleService {
         );
         refund.markRefunded();
     }
+
     // 환불실패 상태변경
     private void markExistingRefundRetrying(Payment payment) {
         Refund refund = refundRepository.findByPayment(payment).orElseThrow(
@@ -259,6 +290,7 @@ public class PaymentLifecycleService {
         );
         refund.markRetrying();
     }
+
     // 환불, 결제취소 검증
     private boolean isCancelledStatus(String status) {
         if (status == null) {
@@ -266,6 +298,7 @@ public class PaymentLifecycleService {
         }
         return "CANCELLED".equalsIgnoreCase(status) || "PARTIAL_CANCELLED".equalsIgnoreCase(status);
     }
+
     // 환불 재시도후 최종실패
     public void markRefundFailed(String paymentId) {
         Payment payment = paymentRepository.findWithLockByPaymentId(paymentId).orElseThrow(
@@ -276,6 +309,7 @@ public class PaymentLifecycleService {
         );
         refund.markFailed();
     }
+
     // 취소 재시도 큐등록
     private void enqueueCancelRetry(String paymentId, String idempotencyKey, String reason, CancelFlow cancelFlow) {
         boolean alreadyExists = paymentRetryTaskRepository.existsByPaymentIdAndOperationAndStatusIn(

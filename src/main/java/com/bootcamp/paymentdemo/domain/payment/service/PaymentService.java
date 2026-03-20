@@ -50,10 +50,16 @@ public class PaymentService {
         Order order = orderRepository.findByOrderId(request.orderId()).orElseThrow(
                 () -> new IllegalArgumentException("없는 주문번호")
         );
+
+        Long expectedAmount = order.getTotalAmount().longValue();
+        if (!expectedAmount.equals(request.totalAmount())) {
+            throw new IllegalArgumentException("주문 금액과 결제 금액은 같아야 합니다.");
+        }
+
         paymentAccessValidator.validateOrderOwnership(authentication, order); // 주문한유저가 맞는지확인
 
         String paymentId = generatePaymentId();  // 결제고유ID 발급
-        Payment payment = Payment.of(order, request.totalAmount(), paymentId); // 페이먼트객체생성
+        Payment payment = Payment.of(order, expectedAmount, paymentId); // 페이먼트객체생성
         paymentRepository.save(payment);
 
         return PaymentCreateReadyResponse.checkoutReady(payment);
@@ -96,37 +102,39 @@ public class PaymentService {
                     "포트원 조회 실패(비재시도): " + apiException.getMessage()
             );
         }
+        if (portOnePayment.isPaidStatus()) {
+            try {
+                paymentLifecycleService.completeApprovedPayment(paymentId, portOnePayment);
+            } catch (Exception processingException) {
+                String compensationMessage = paymentLifecycleService.compensateApprovedPayment(
+                        paymentId,
+                        "결제 확정 후 내부 처리 실패로 취소"
+                );
+                log.error("결제 확정 후 내부 처리 실패 - paymentId={}, message={}",
+                        paymentId, processingException.getMessage(), processingException);
 
-        if (!portOnePayment.isPaidStatus()) { // 포트원의 결제상태가 PAID가 아닐때
+                return PaymentConfirmResponse.failed(
+                        paymentLifecycleService.getPayment(paymentId),
+                        "내부 처리 실패: " + processingException.getMessage() + " | " + compensationMessage
+                );
+            }
+
+            return PaymentConfirmResponse.success(paymentLifecycleService.getPayment(paymentId));
+        } else if (portOnePayment.isTerminalFailureStatus()) { // 결제 실패
             paymentLifecycleService.markFailed(paymentId);
             return PaymentConfirmResponse.failed(
                     paymentLifecycleService.getPayment(paymentId),
                     "포트원 결제 실패. status=" + portOnePayment.getStatus()
                             + ", reason=" + portOnePayment.resolveFailureReason()
             );
-        }
-
-        try {
-            paymentLifecycleService.completeApprovedPayment(paymentId, portOnePayment); // 결제확정후 로직
-            // 보상트랜젝션 진행해야하는경우
-        } catch (Exception processingException) {
-            String compensationMessage = paymentLifecycleService.compensateApprovedPayment(
-                    paymentId,
-                    "결제 확정 후 내부 처리 실패로 취소"
-            );
-            log.error("결제 확정 후 내부 처리 실패 - paymentId={}, message={}",
-                    paymentId, processingException.getMessage(), processingException);
-
+        } else {
+            paymentRetryService.enqueueVerifyRetry(paymentId, verifyIdempotencyKey);  // 상태 레디등 포트원 조회오류 재시도 큐등록
             return PaymentConfirmResponse.failed(
-                    paymentLifecycleService.getPayment(paymentId),
-                    "내부 처리 실패: " + processingException.getMessage() + " | " + compensationMessage
+                    payment,
+                    "포트원 결제 상태 확인 중입니다. status=" + portOnePayment.getStatus()
             );
         }
-
-        // 결제완료되었다는 리스폰 프론트로보낼것
-        return PaymentConfirmResponse.success(paymentLifecycleService.getPayment(paymentId));
     }
-
     /**
      * 포트원 웹훅 처리
      * Webhook은 Client Confirm과 동일한 "결제 확정 검증 규칙"을 따라야 합니다.

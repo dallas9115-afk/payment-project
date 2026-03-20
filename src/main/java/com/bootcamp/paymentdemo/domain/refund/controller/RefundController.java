@@ -4,6 +4,7 @@ import com.bootcamp.paymentdemo.domain.refund.dto.Request.RefundRequest;
 import com.bootcamp.paymentdemo.domain.refund.dto.Response.RefundResponse;
 import com.bootcamp.paymentdemo.domain.refund.dto.Response.RefundSummaryResponse;
 import com.bootcamp.paymentdemo.domain.refund.service.RefundService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -13,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/payment")
+@RequestMapping("/api/payments")
 public class RefundController {
 
     private final RefundService refundService;
@@ -23,7 +24,7 @@ public class RefundController {
     public ResponseEntity<RefundResponse> cancelPayment(
             Authentication authentication,
             @PathVariable("paymentId") String paymentId,
-            @RequestBody RefundRequest request
+            @Valid @RequestBody RefundRequest request
     ) {
         RefundResponse response = refundService.cancel(authentication, paymentId,request);
         return ResponseEntity.ok(response);
