@@ -1,16 +1,20 @@
 package com.bootcamp.paymentdemo.domain.customer.service;
 
 
+import com.bootcamp.paymentdemo.domain.customer.dto.response.MembershipGradePolicyResponse;
 import com.bootcamp.paymentdemo.domain.customer.entity.Customer;
 import com.bootcamp.paymentdemo.domain.order.repository.OrderRepository;
 import com.bootcamp.paymentdemo.domain.customer.entity.MembershipGradePolicy;
 import com.bootcamp.paymentdemo.domain.customer.entity.UserMembership;
 import com.bootcamp.paymentdemo.domain.customer.repository.MembershipGradePolicyRepository;
 import com.bootcamp.paymentdemo.domain.customer.repository.UserMembershipRepository;
+import com.bootcamp.paymentdemo.domain.point.dto.Response.CustomerPointMembershipResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -93,6 +97,30 @@ public class MembershipService {
             membership.updateGrade(newPolicy);
         }
     }
+
+    // 현재 내 잔액과 등급 조회
+    @Transactional(readOnly = true)
+    public CustomerPointMembershipResponse.MembershipDto getMembershipSummary(Long customerId) {
+        UserMembership membership = userMembershipRepository.findByCustomerId(customerId)
+                .orElseThrow(() -> new IllegalStateException("멤버십 정보를 찾을 수 없습니다.")); //
+
+        return CustomerPointMembershipResponse.MembershipDto.builder()
+                .grade(membership.getGradePolicy().getGradeName()) //
+                .benefitRate(membership.getGradePolicy().getPointRate()) //
+                .accumulatedAmount(membership.getTotalPaidAmount()) //
+                .build();
+    }
+
+    //멤버십 정책 조회
+    @Transactional(readOnly = true)
+    public List<MembershipGradePolicyResponse> getAllMembershipPolicies() {
+        // 모든 정책을 조회하여 DTO 리스트로 변환
+        return policyRepository.findAll().stream()
+                .filter(MembershipGradePolicy::getIsActive) // 활성화된 정책만 필터링
+                .map(MembershipGradePolicyResponse::from)
+                .toList();
+    }
+
 
 
 }
