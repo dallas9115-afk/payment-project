@@ -19,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CustomerService {
     private final CustomerRepository customerRepository;
-    private final MembershipService membershipService;
+//    private final MembershipService membershipService;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -40,7 +40,7 @@ public class CustomerService {
                         .build()
         );
 
-        membershipService.createDefaultMembership(customer);
+//        membershipService.createDefaultMembership(customer);
 
         return CustomerSignupResponse.from(customer);
     }

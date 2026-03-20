@@ -1,6 +1,9 @@
 package com.bootcamp.paymentdemo.domain.customer.entity;
 
 import com.bootcamp.paymentdemo.domain.customer.enums.Grade;
+//import com.bootcamp.paymentdemo.domain.point.entity.PointDetail;
+//import com.bootcamp.paymentdemo.domain.point.entity.PointHistory;
+//import com.bootcamp.paymentdemo.domain.point.entity.PointType;
 import com.bootcamp.paymentdemo.domain.point.entity.PointDetail;
 import com.bootcamp.paymentdemo.domain.point.entity.PointHistory;
 import com.bootcamp.paymentdemo.domain.point.entity.PointType;
