@@ -9,6 +9,7 @@ import com.bootcamp.paymentdemo.domain.order.dto.Response.OrderDetailResponse;
 import com.bootcamp.paymentdemo.domain.order.dto.Response.OrderListResponse;
 import com.bootcamp.paymentdemo.domain.order.entity.Order;
 import com.bootcamp.paymentdemo.domain.order.entity.OrderItem;
+import com.bootcamp.paymentdemo.domain.order.entity.OrderStatus;
 import com.bootcamp.paymentdemo.domain.order.repository.OrderItemRepository;
 import com.bootcamp.paymentdemo.domain.order.repository.OrderRepository;
 import com.bootcamp.paymentdemo.domain.product.entity.Product;
@@ -161,6 +162,65 @@ public class OrderService {
         return "ORD-" + dataPrefix + "-" + randomSuffix;
     }
 
+ // 생성 → 결제 대기 → [결제 성공] → 주문 완료
+    @Transactional
+    public void completeOrder(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다. id=" + orderId));
+
+        if (order.getStatus() == OrderStatus.PENDING) {
+            order.changeStatus(OrderStatus.PAID);
+            return;
+        }
+
+        if (order.getStatus() == OrderStatus.PAID) {
+            return; // 멱등 처리 첫 번째 호출: PENDING -> PAID 성공
+                   //          두 번째 호출: 이미 성공한 상태 확인 → 그냥 종료
+        }
+
+        throw new IllegalStateException("주문 완료 처리가 불가능한 상태입니다. currentStatus=" + order.getStatus());
+    }
+
+
+// 생성 -> 결제 대기 -> [결제 실패] → 결제 대기 (유지)
+    @Transactional
+    public void failOrderPayment(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다. id=" + orderId));
+
+        if (order.getStatus() == OrderStatus.PENDING) {
+            return; // 이미 결제 대기 상태 -> 유지
+        }
+
+        if (order.getStatus() == OrderStatus.PAID) {
+            throw new IllegalStateException("이미 결제 완료된 주문은 결제 실패로 처리할 수 없습니다.");
+        }
+
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new IllegalStateException("취소된 주문은 결제 실패 처리 대상이 아닙니다.");
+        }
+    }
+
+    // 생성 -> 결제 대기 ->  [결제 성공] → [환불 요청] → 환불
+    @Transactional
+    public void cancelOrder(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다. id=" + orderId));
+
+        // 1) 이미 취소된 주문이면 멱등 처리
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            return;
+        }
+
+        // 2) 취소 가능한 상태만 취소 처리
+        if (order.getStatus() == OrderStatus.PAID || order.getStatus() == OrderStatus.PENDING) {
+            order.changeStatus(OrderStatus.CANCELLED);
+            return;
+        }
+
+        // 3) 그 외 상태는 정책상 취소 불가로 보고 예외 전파
+        throw new IllegalStateException("주문 취소가 불가능한 상태입니다. currentStatus=" + order.getStatus());
+    }
 
 }
 
