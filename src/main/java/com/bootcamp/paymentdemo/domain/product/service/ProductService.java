@@ -61,6 +61,7 @@ public class ProductService {
     }
 
 
+    // 결제 성공 -> 재고 차감.
     @Transactional
     public void decreaseStockByOrder(Long orderId) {
         List<OrderItem> orderItems = orderItemRepository.findAllByOrder_Id(orderId);
@@ -92,6 +93,8 @@ public class ProductService {
         }
     }
 
+
+    // 환불 -> 재고 증가.
     @Transactional
     public void restoreStockByOrder(Long orderId) {
         Order order = orderRepository.findById(orderId)
@@ -104,7 +107,7 @@ public class ProductService {
 
         // 2) 결제 완료 상태인 주문만 재고 복구 가능
         if (order.getStatus() != OrderStatus.PAID) {
-            throw new IllegalStateException("재고 복구가 불가능한 주문 상태입니다. currentStatus=" + order.getStatus());
+            throw new IllegalStateException("재고 복구가 불가능한 주문 상태입니다. 현재 상태는" + order.getStatus());
         }
 
         List<OrderItem> orderItems = orderItemRepository.findAllByOrder_Id(orderId);
