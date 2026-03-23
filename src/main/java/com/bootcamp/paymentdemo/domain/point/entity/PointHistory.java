@@ -11,8 +11,6 @@ import lombok.*;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
-@Builder
 @Table(name = "point_histories")
 public class PointHistory extends BaseEntity {
     // 로그 기록, 데이터 정합성 검증, Cs대응용

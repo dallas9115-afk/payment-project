@@ -82,8 +82,8 @@ public class PointDetail extends BaseEntity {
 
     }
 
-    public void expire() {
-        this.status = PointStatus.EXPIRED;
+    public void cancel() {
+        this.status = PointStatus.CANCELED;
         this.remainAmount = 0;
 
     }
