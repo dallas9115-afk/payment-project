@@ -44,7 +44,7 @@ jobs:
             echo "2. 최신 이미지 다운로드"
             sudo docker pull ${{ secrets.DOCKER_USERNAME }}/infra-skeleton:latest
             
-            echo "3. 도커 컨테이너 실행 (RDS, PortOne, JWT, Redis 환경변수 주입)"
+            echo "3. 도커 컨테이너 실행 (RDS, PortOne, JWT, Redis, OAuth2 환경변수 주입)"
             # -e 옵션을 통해 깃허브 시크릿 값을 도커 컨테이너 내부로 한 번에 전달합니다.
             sudo docker run -d --name infra-skeleton -p 8080:8080 \
               -e RDS_HOSTNAME="${{ secrets.RDS_HOSTNAME }}" \
@@ -57,6 +57,10 @@ jobs:
               -e JWT_SECRET_KEY="${{ secrets.JWT_SECRET_KEY }}" \
               -e REDIS_HOST="${{ secrets.REDIS_HOST }}" \
               -e REDIS_PASSWORD="${{ secrets.REDIS_PASSWORD }}" \
+              -e GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
+              -e GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+              -e KAKAO_CLIENT_ID="${{ secrets.KAKAO_CLIENT_ID }}" \
+              -e KAKAO_CLIENT_SECRET="${{ secrets.KAKAO_CLIENT_SECRET }}" \
               ${{ secrets.DOCKER_USERNAME }}/infra-skeleton:latest
             
             echo "4. 사용하지 않는 찌꺼기 이미지 삭제 (용량 확보)"

@@ -2,7 +2,7 @@ spring:
   application:
     name: payment-demo
 
-  # 1. DB 연결 설정 (임시 exclude는 삭제하고 진짜 DB 주소 추가)
+  # 1. DB 연결 설정
   datasource:
     url: jdbc:mysql://${RDS_HOSTNAME:localhost}:3306/payment?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
     username: ${RDS_USERNAME}
@@ -20,7 +20,42 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
 
-  # 3. 기존 설정들 (들여쓰기 위치 교정 완료)
+  # 3. Redis 연결 설정 (deploy.yml과 환경변수 연동)
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+      password: ${REDIS_PASSWORD:}
+
+  # 4. OAuth2 소셜 로그인 설정 (구글, 카카오)
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - profile
+              - email
+          kakao:
+            client-id: ${KAKAO_CLIENT_ID}
+            client-secret: ${KAKAO_CLIENT_SECRET}
+            redirect-uri: "{baseUrl}/login/oauth2/code/kakao"
+            authorization-grant-type: authorization_code
+            client-authentication-method: client_secret_post
+            client-name: Kakao
+            scope:
+              - profile_nickname
+              - account_email
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
+
+  # 5. 기존 설정들
   config:
     import:
       - optional:classpath:client-api-config.yml
@@ -32,11 +67,6 @@ spring:
     suffix: .html
     mode: HTML
     encoding: UTF-8
-
-  security:
-    user:
-      name: demo
-      password: demo123
 
 server:
   port: 8080
@@ -54,9 +84,9 @@ portone:
     kg-inicis: ${PORTONE_CHANNEL_KG:}
     toss: ${PORTONE_CHANNEL_TOSS:}
 
-# JWT Configuration
+# JWT Configuration (deploy.yml의 환경변수명 JWT_SECRET_KEY와 완벽 일치시킴)
 jwt:
-  secret: ${JWT_SECRET:commercehub-secret-key-for-demo-please-change-this-in-production-environment}
+  secret: ${JWT_SECRET_KEY:commercehub-secret-key-for-demo-please-change-this-in-production-environment}
   token-validity-in-seconds: ${JWT_VALIDITY:86400}  # 24 hours
 
 # UI Branding Configuration

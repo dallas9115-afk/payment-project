@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '4.0.1'
+    id 'org.springframework.boot' version '4.0.3' // 마스터님 요청대로 4.0.3으로 픽스
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -9,6 +9,7 @@ version = '1.0.0'
 
 java {
     toolchain {
+        // Spring Boot 4.0의 최소 요구사항인 Java 17 (향후 여유가 되시면 21로 올리시는 것도 좋습니다!)
         languageVersion = JavaLanguageVersion.of(17)
     }
 }
@@ -24,14 +25,20 @@ repositories {
 }
 
 dependencies {
-    // Spring Boot Starters
-    implementation 'org.springframework.boot:spring-boot-starter-web'
+    // 🌟 Spring Boot 4.0 핵심 변경: web -> webmvc
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // Security & OAuth2
     implementation 'org.springframework.boot:spring-boot-starter-security'
-    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+
+    // Database
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     runtimeOnly 'com.mysql:mysql-connector-j'
+    implementation 'com.h2database:h2'
 
     // Configuration Properties
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
@@ -40,33 +47,18 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
 
-    // Validation
-    implementation 'org.springframework.boot:spring-boot-starter-validation'
-
-    // JWT
+    // JWT (0.12.3 버전은 Spring Boot 4.0의 Jakarta EE 11과 완벽 호환됩니다!)
     implementation 'io.jsonwebtoken:jjwt-api:0.12.3'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
 
-    // security
-    implementation 'org.springframework.boot:spring-boot-starter-security'
-
-    // tsid
+    // TSID
     implementation 'com.github.f4b6a3:tsid-creator:5.2.6'
-
-    runtimeOnly 'com.mysql:mysql-connector-j'
 
     // Testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
-    // Spring Data JPA
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-
-    // h2
-    implementation 'com.h2database:h2'
-
 }
 
 tasks.named('test') {
