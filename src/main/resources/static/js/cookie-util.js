@@ -100,5 +100,5 @@ function getEmailFromToken() {
 
     const payload = decodeJWT(token);
     // 'sub' 클레임에 이메일이 저장되어 있음
-    return payload ? payload.sub : null;
+    return payload ? payload.email : null;
 }

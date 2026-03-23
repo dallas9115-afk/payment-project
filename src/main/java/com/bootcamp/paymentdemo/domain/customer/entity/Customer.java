@@ -1,9 +1,9 @@
 package com.bootcamp.paymentdemo.domain.customer.entity;
 
-import com.bootcamp.paymentdemo.domain.customer.enums.Grade;
-//import com.bootcamp.paymentdemo.domain.point.entity.PointDetail;
-//import com.bootcamp.paymentdemo.domain.point.entity.PointHistory;
-//import com.bootcamp.paymentdemo.domain.point.entity.PointType;
+import com.bootcamp.paymentdemo.domain.point.entity.PointDetail;
+import com.bootcamp.paymentdemo.domain.point.entity.PointHistory;
+import com.bootcamp.paymentdemo.domain.point.entity.PointType;
+import com.bootcamp.paymentdemo.domain.customer.enums.Rank;
 import com.bootcamp.paymentdemo.domain.point.entity.PointDetail;
 import com.bootcamp.paymentdemo.domain.point.entity.PointHistory;
 import com.bootcamp.paymentdemo.domain.point.entity.PointType;
@@ -18,6 +18,8 @@ import lombok.*;
 @Entity
 @Table(name = "customers")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class Customer {
 
     // 고객 ID
@@ -54,7 +56,7 @@ public class Customer {
 
     // 고객 등급
     @Enumerated(EnumType.STRING)
-    private Grade grade = Grade.NORMAL; // 디폴트 값(NORMAL)
+    private Rank rank = Rank.NORMAL; // 디폴트 값(NORMAL)
 
 //    // 고객 포인트   <- 스냅샷으로 아래 변수명으로 변경하였습니다 :D
 //    private int points = 0; // 디폴트 값(0P)
@@ -63,15 +65,12 @@ public class Customer {
     @Column(nullable = false)
     private Long currentPoint = 0L;
 
-
-
-    @Builder
-    private Customer(String name, String email, String password, String phoneNumber, Grade grade, Long currentPoint) {
+    public Customer(String name, String email, String password, String phoneNumber, Rank rank, Long currentPoint) {
         this.name = name;
         this.email = email;
         this.password = password;
         this.phoneNumber = phoneNumber;
-        this.grade = (grade != null) ? grade : Grade.NORMAL;
+        this.rank = (rank != null) ? rank : Rank.NORMAL;
         this.currentPoint = (currentPoint != null) ? currentPoint : 0L;
     }
 

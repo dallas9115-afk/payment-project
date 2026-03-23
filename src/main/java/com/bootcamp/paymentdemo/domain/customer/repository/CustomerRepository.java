@@ -15,6 +15,6 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     @Lock(LockModeType.PESSIMISTIC_WRITE) //비관적 lock 설정
     @Query("select u from Customer  u where u.id = :id")
-    Optional<Customer> findByIdWithLock(Long customerId);
+    Optional<Customer> findByIdWithLock(Long id);
     Optional<Customer> findByEmail(String email);
 }

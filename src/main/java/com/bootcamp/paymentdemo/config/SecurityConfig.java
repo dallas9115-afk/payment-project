@@ -48,10 +48,8 @@ public class SecurityConfig {
                         .requestMatchers(toStaticResources().atCommonLocations()).permitAll() // 정적 리소스
                         .requestMatchers(HttpMethod.GET, "/", "/pages/**").permitAll() // 템플릿 페이지
                         .requestMatchers(
-                                "/api/customer/v1/customers/signup",
-                                "/api/customer/v1/customers/login",
-                                "/api/auth/login",
-                                "/api/auth/register"
+                                "/api/auth/v1/register",
+                                "/api/auth/v1/login"
                         ).permitAll() // 공개 인증 API
                         .requestMatchers("/api/public/**").permitAll() // 공개 API
                         .requestMatchers("/actuator/**").permitAll() // 헬스체크
