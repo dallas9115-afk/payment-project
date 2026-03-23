@@ -2,7 +2,7 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main", "develop" ] # develop 브랜치에 합쳐질 때도 배포되도록 추가!
+    branches: [ "main", "develop" ]
 
 jobs:
   build-and-push:
@@ -22,7 +22,6 @@ jobs:
         with:
           context: .
           push: true
-          # 팀 협업을 위해 latest 외에 커밋 해시(sha) 태그
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/infra-skeleton:latest
             ${{ secrets.DOCKER_USERNAME }}/infra-skeleton:${{ github.sha }}
@@ -45,8 +44,8 @@ jobs:
             echo "2. 최신 이미지 다운로드"
             sudo docker pull ${{ secrets.DOCKER_USERNAME }}/infra-skeleton:latest
             
-            echo "3. 도커 컨테이너 실행 (RDS, PortOne, JWT 환경변수 주입)"
-            #  -e 옵션을 통해 깃허브 시크릿 값을 도커 컨테이너 내부로 전달합니다.
+            echo "3. 도커 컨테이너 실행 (RDS, PortOne, JWT, Redis 환경변수 주입)"
+            # -e 옵션을 통해 깃허브 시크릿 값을 도커 컨테이너 내부로 한 번에 전달합니다.
             sudo docker run -d --name infra-skeleton -p 8080:8080 \
               -e RDS_HOSTNAME="${{ secrets.RDS_HOSTNAME }}" \
               -e RDS_USERNAME="${{ secrets.RDS_USERNAME }}" \
@@ -56,6 +55,8 @@ jobs:
               -e PORTONE_CHANNEL_KG="${{ secrets.PORTONE_CHANNEL_KG }}" \
               -e PORTONE_CHANNEL_TOSS="${{ secrets.PORTONE_CHANNEL_TOSS }}" \
               -e JWT_SECRET_KEY="${{ secrets.JWT_SECRET_KEY }}" \
+              -e REDIS_HOST="${{ secrets.REDIS_HOST }}" \
+              -e REDIS_PASSWORD="${{ secrets.REDIS_PASSWORD }}" \
               ${{ secrets.DOCKER_USERNAME }}/infra-skeleton:latest
             
             echo "4. 사용하지 않는 찌꺼기 이미지 삭제 (용량 확보)"
