@@ -59,7 +59,7 @@ spring:
   config:
     import:
       - optional:classpath:client-api-config.yml
-      - optional:classpath:application-local.properties
+      - optional:classpath:application-local.yml
 
   thymeleaf:
     cache: false
