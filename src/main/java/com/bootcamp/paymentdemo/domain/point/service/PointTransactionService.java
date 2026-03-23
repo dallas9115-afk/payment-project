@@ -106,6 +106,11 @@ public class PointTransactionService {
     @Transactional
     public void earnPointAfterPayment(Long customerId, Long orderId, Long paidAmount) {
 
+        if (paidAmount == null || paidAmount <= 0) {
+            log.info("실 결제 금액이 0원 이하이므로 포인트 적립을 진행하지 않습니다. (OrderId: {})", orderId);
+            return;
+        }
+
         // 1. [멱등성 체크] 해당 주문번호로 기 적립된 내역이 있는지 확인.
         // PointDetail에 orderId에 있으니 이를 활용함.
         boolean alreadyEarned = pointDetailRepository.existsByOrderId(String.valueOf(orderId));

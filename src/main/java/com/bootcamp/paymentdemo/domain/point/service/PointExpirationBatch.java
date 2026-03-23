@@ -70,7 +70,7 @@ public class PointExpirationBatch {
             customer.deductPoint((long) expireAmount);
 
             //2. 상세 내역 상태 변경(엔티티 메서드 호출)
-            detail.expire();
+            detail.cancel();
 
             //3. 이력 남기기
             pointHistoryRepository.save(PointHistory.builder()
