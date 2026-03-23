@@ -212,7 +212,7 @@ public class PaymentLifecycleService {
                 pointTransactionService.refundUsedPoints(payment.getOrder().getOrderId()); // 포인트복구
             }
             if (payment.getPgAmount() > 0L) {
-                pointTransactionService.cancelEarnedPoints(String.valueOf(payment.getOrder().getId())); // 포인트 회수
+                pointTransactionService.cancelEarnedPoints(String.valueOf(payment.getOrder().getOrderId())); // 포인트 회수
             }
             productService.restoreStockByOrder(payment.getOrder().getId()); // 재고복구
             orderService.cancelOrder(payment.getOrder().getId());  // 주문상태변경

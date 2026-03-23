@@ -223,34 +223,53 @@ public class PointTransactionService {
     }
 
 
-    // 포인트 회수
+// 포인트 회수
+
     @Transactional
-    public void cancelEarnedPoints(String orderId, Long recoverableAmount) {
-        // 1. [멱등성 체크] CANCEL 이력이 이미 있는지 확인
+
+    public void cancelEarnedPoints(String orderId) {
+
+// 1. [멱등성 체크] CANCEL 이력이 이미 있는지 확인
         if (pointHistoryRepository.existsByOrderIdAndType(orderId, PointType.CANCEL)) {
             log.warn("이미 적립 포인트 회수(CANCEL) 처리가 완료된 주문입니다. (OrderId: {})", orderId);
             return;
         }
 
+// 2. 해당 주문으로 적립된 상세 내역 조회
         List<PointDetail> earnedDetails = pointDetailRepository.findAllByOrderId(orderId);
         if (earnedDetails.isEmpty()) return;
-
-        Customer customer = customerRepository.findByIdWithLock(earnedDetails.get(0).getCustomerId())
+        Long customerId = earnedDetails.get(0).getCustomerId();
+        Customer customer = customerRepository.findByIdWithLock(customerId)
                 .orElseThrow(() -> new IllegalStateException("존재하지 않는 유저 입니다."));
 
+// 3. 회수 대상 총액 계산
+        long totalToRecover = earnedDetails.stream()
+                .mapToLong(PointDetail::getInitialAmount)
+                .sum();
+
+// 4. [데이터 정합성] 변동 전 스냅샷 기록
         Long beforePoint = customer.getCurrentPoint();
+        try {
 
-        // 2. [핵심] 실제 회수 진행 (현금 상계된 금액을 제외한 recoverableAmount만큼만 차감)
-        customer.deductPoint(recoverableAmount);
+// 5. 잔액 검증 및 차감 -> 마이너스 잔액 방지
+            customer.deductPoint(totalToRecover);
+            Long afterPoint = customer.getCurrentPoint();
 
-        // 3. 상태 변경 (적립 상세 내역은 무조건 무효화)
-        earnedDetails.forEach(PointDetail::cancel);
+// 6. 상세 내역 상태 변경
+            for (PointDetail detail : earnedDetails) {
+                detail.cancel(); // 상태를 EXPIRED 또는 CANCELED로 변경
+            }
 
-        // 4. 이력 저장
-        saveHistory(customer, null, PointType.CANCEL, -recoverableAmount, beforePoint, customer.getCurrentPoint(), orderId,
-                "주문 취소에 따른 적립 포인트 회수 (상계 처리 반영)");
+// 7. 기록
+            saveHistory(customer, null, PointType.CANCEL, -totalToRecover, beforePoint, afterPoint, orderId, "주문 취소로 인한 적립 포인트 회수: " + orderId);
 
-        membershipService.refreshUserMembership(customer.getId());
+// 8. 등급 재계산
+            membershipService.refreshUserMembership(customerId);
+        } catch (IllegalStateException e) {
+            log.error("[회수 실패] 잔액 부족. 주문: {}, 필요: {}, 현재: {}",
+                    orderId, totalToRecover, beforePoint);
+            throw new CommonException(CommonError.INSUFFICIENT_BALANCE);
+        }
     }
 
 
