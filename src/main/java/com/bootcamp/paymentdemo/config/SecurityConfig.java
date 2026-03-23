@@ -49,7 +49,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/", "/pages/**").permitAll() // 템플릿 페이지
                         .requestMatchers(
                                 "/api/auth/v1/register",
-                                "/api/auth/v1/login"
+                                "/api/auth/v1/login",
+                                "/api/auth/v1/me"
                         ).permitAll() // 공개 인증 API
                         .requestMatchers("/api/public/**").permitAll() // 공개 API
                         .requestMatchers("/actuator/**").permitAll() // 헬스체크

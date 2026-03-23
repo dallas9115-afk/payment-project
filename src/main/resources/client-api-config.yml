@@ -28,8 +28,8 @@ api:
     # 인증 (Authentication)
     # ========================================
     login:
-      url:
-      method:
+      url: /api/auth/v1/login
+      method: POST
       description: 사용자 로그인
       request:
         fields:
@@ -58,8 +58,8 @@ api:
               description: 로그인한 사용자 이메일
 
     register:
-      url:
-      method:
+      url: /api/auth/v1/register
+      method: POST
       description: 회원가입
       request:
         fields:
