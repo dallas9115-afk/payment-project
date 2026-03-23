@@ -225,51 +225,108 @@ public class PointTransactionService {
 
     // 포인트 회수
     @Transactional
-    public void cancelEarnedPoints(String orderId) {
+    public void cancelEarnedPoints(String orderId, Long recoverableAmount) {
         // 1. [멱등성 체크] CANCEL 이력이 이미 있는지 확인
         if (pointHistoryRepository.existsByOrderIdAndType(orderId, PointType.CANCEL)) {
             log.warn("이미 적립 포인트 회수(CANCEL) 처리가 완료된 주문입니다. (OrderId: {})", orderId);
             return;
         }
 
-        // 2. 해당 주문으로 적립된 상세 내역 조회
         List<PointDetail> earnedDetails = pointDetailRepository.findAllByOrderId(orderId);
         if (earnedDetails.isEmpty()) return;
 
-        Long customerId = earnedDetails.get(0).getCustomerId();
-        Customer customer = customerRepository.findByIdWithLock(customerId)
+        Customer customer = customerRepository.findByIdWithLock(earnedDetails.get(0).getCustomerId())
                 .orElseThrow(() -> new IllegalStateException("존재하지 않는 유저 입니다."));
 
-        // 3. 회수 대상 총액 계산
-        long totalToRecover = earnedDetails.stream()
+        Long beforePoint = customer.getCurrentPoint();
+
+        // 2. [핵심] 실제 회수 진행 (현금 상계된 금액을 제외한 recoverableAmount만큼만 차감)
+        customer.deductPoint(recoverableAmount);
+
+        // 3. 상태 변경 (적립 상세 내역은 무조건 무효화)
+        earnedDetails.forEach(PointDetail::cancel);
+
+        // 4. 이력 저장
+        saveHistory(customer, null, PointType.CANCEL, -recoverableAmount, beforePoint, customer.getCurrentPoint(), orderId,
+                "주문 취소에 따른 적립 포인트 회수 (상계 처리 반영)");
+
+        membershipService.refreshUserMembership(customer.getId());
+    }
+
+
+    // --- [요청 1] 환불 전 영향도 계산 (Preview) ---
+    @Transactional(readOnly = true)
+    public PointRefundPreview previewRefundImpact(Long customerId, String orderId) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new IllegalStateException("존재하지 않는 유저입니다."));
+
+        long restorable = getRestorableUsedPoints(orderId);
+        long toCancel = getEarnedPointsToCancel(orderId);
+
+        // 회수 불가 금액 계산: 회수해야 할 적립금에서 현재 잔액을 뺀 값 (0 이하일 수 없음)
+        long unrecoverable = Math.max(0, toCancel - customer.getCurrentPoint());
+
+        return PointRefundPreview.builder()
+                .currentPointBalance(customer.getCurrentPoint())
+                .restorableUsedPoints(restorable)
+                .earnedPointsToCancel(toCancel)
+                .unrecoverableEarnedPoints(unrecoverable)
+                .build();
+    }
+
+    // --- [요청 2] 주문 기준 사용 포인트 총합 (복구 대상) ---
+    @Transactional(readOnly = true)
+    public Long getRestorableUsedPoints(String orderId) {
+        return pointHistoryRepository.findAllByOrderIdAndType(orderId, PointType.USED)
+                .stream()
+                .mapToLong(h -> Math.abs(h.getAmount()))
+                .sum();
+    }
+
+    // --- [요청 3] 주문 기준 적립 포인트 총합 (회수 대상) ---
+    @Transactional(readOnly = true)
+    public Long getEarnedPointsToCancel(String orderId) {
+        return pointDetailRepository.findAllByOrderId(orderId)
+                .stream()
+                .mapToLong(PointDetail::getInitialAmount)
+                .sum();
+    }
+
+
+
+
+    //-------------------------------------------------------------------------------//
+
+    // 단순 잔액 조회
+    @Transactional(readOnly = true)
+    public Long getPointBalance(Long customerId) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new IllegalStateException("유저가 없습니다.")); //
+        return customer.getCurrentPoint(); //
+    }
+
+    /**
+     * [추가] 실제 회수 가능한 포인트 금액 조회
+     * @param orderId 주문번호
+     * @return (적립된 금액)과 (현재 유저 잔액) 중 최소값 (실제 뺏어올 수 있는 최대치)
+     */
+    @Transactional(readOnly = true)
+    public long getRecoverableAmount(String orderId) {
+        List<PointDetail> earnedDetails = pointDetailRepository.findAllByOrderId(orderId);
+        if (earnedDetails.isEmpty()) return 0L;
+
+        // 해당 주문으로 적립된 총액
+        long totalEarned = earnedDetails.stream()
                 .mapToLong(PointDetail::getInitialAmount)
                 .sum();
 
-        // 4. [데이터 정합성] 변동 전 스냅샷 기록
-        Long beforePoint = customer.getCurrentPoint();
+        // 유저의 현재 잔액
+        Customer customer = customerRepository.findById(earnedDetails.get(0).getCustomerId())
+                .orElseThrow(() -> new IllegalStateException("유저를 찾을 수 없습니다."));
+        long currentBalance = customer.getCurrentPoint();
 
-        try {
-            // 5.  잔액 검증 및 차감 -> 마이너스 잔액 방지
-            customer.deductPoint(totalToRecover);
-            Long afterPoint = customer.getCurrentPoint();
-
-            // 6. 상세 내역 상태 변경
-            for (PointDetail detail : earnedDetails) {
-                detail.cancel(); // 상태를 EXPIRED 또는 CANCELED로 변경
-            }
-
-            // 7. 기록
-            saveHistory(customer, null, PointType.CANCEL, -totalToRecover, beforePoint, afterPoint, orderId, "주문 취소로 인한 적립 포인트 회수: " + orderId);
-
-
-            // 8. 등급 재계산
-            membershipService.refreshUserMembership(customerId);
-
-        } catch (IllegalStateException e) {
-            log.error("[회수 실패] 잔액 부족. 주문: {}, 필요: {}, 현재: {}",
-                    orderId, totalToRecover, beforePoint);
-            throw new CommonException(CommonError.INSUFFICIENT_BALANCE);
-        }
+        // 둘 중 작은 금액이 실제 회수 가능한 금액
+        return Math.min(totalEarned, currentBalance);
     }
 
     // 공통 이력 저장 로직 (Dead Code 제거 및 중복 방지)
@@ -293,14 +350,6 @@ public class PointTransactionService {
                 .orderId(orderId)
                 .reason(reason)
                 .build());
-    }
-
-    // 단순 잔액 조회
-    @Transactional(readOnly = true)
-    public Long getPointBalance(Long customerId) {
-        Customer customer = customerRepository.findById(customerId)
-                .orElseThrow(() -> new IllegalStateException("유저가 없습니다.")); //
-        return customer.getCurrentPoint(); //
     }
 
 
