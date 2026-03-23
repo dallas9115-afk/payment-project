@@ -38,8 +38,15 @@ public class Payment extends BaseEntity {
         @Column(unique = true, nullable = false)
         private String paymentId;
 
+        // 오더에있는 주문금액
         @Column(nullable = false)
-        private Long amount;
+        private Long orderAmount;
+
+        @Column(nullable = false)
+        private Long usePoint;
+        //포인트를 뺀 총금액
+        @Column(nullable = false)
+        private Long pgAmount;
 
         @Enumerated(EnumType.STRING)
         @Column(nullable = false)
@@ -54,11 +61,13 @@ public class Payment extends BaseEntity {
         private LocalDateTime refundedAt;
 
         public static Payment of(
-                Order order, Long totalAmount,String paymentId) {
+                Order order, Long totalAmount,String paymentId,Long usePoint) {
 
                 Payment payment = new Payment();
                 payment.order = order;
-                payment.amount = totalAmount;
+                payment.orderAmount = totalAmount;
+                payment.usePoint = usePoint;
+                payment.pgAmount = totalAmount - usePoint;
                 payment.paymentId = paymentId;
                 payment.status = PaymentStatus.READY;
                 payment.expiresAt= LocalDateTime.now().plusMinutes(10);

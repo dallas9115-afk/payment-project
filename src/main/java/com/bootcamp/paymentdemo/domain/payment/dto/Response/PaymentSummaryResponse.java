@@ -17,7 +17,7 @@ public record PaymentSummaryResponse(
         return new PaymentSummaryResponse(
                 payment.getPaymentId(),
                 payment.getStatus(),
-                payment.getAmount(),
+                payment.getPgAmount(),
                 payment.getPaidAt(),
                 payment.getRefundedAt()
         );
