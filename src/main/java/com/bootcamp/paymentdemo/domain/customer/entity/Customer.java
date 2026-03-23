@@ -56,6 +56,7 @@ public class Customer {
 
     // 고객 등급
     @Enumerated(EnumType.STRING)
+    @Column(name = "member_rank")
     private Rank rank = Rank.NORMAL; // 디폴트 값(NORMAL)
 
 //    // 고객 포인트   <- 스냅샷으로 아래 변수명으로 변경하였습니다 :D
