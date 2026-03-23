@@ -1,6 +1,8 @@
 package com.bootcamp.paymentdemo.domain.payment.service;
 
 import com.bootcamp.paymentdemo.config.PortOneProperties;
+import com.bootcamp.paymentdemo.domain.customer.service.MembershipService;
+import com.bootcamp.paymentdemo.domain.order.service.OrderService;
 import com.bootcamp.paymentdemo.domain.payment.dto.Response.PortOnePaymentInfoResponse;
 import com.bootcamp.paymentdemo.domain.payment.entity.Payment;
 import com.bootcamp.paymentdemo.domain.payment.entity.PaymentRetryTask;
@@ -9,6 +11,8 @@ import com.bootcamp.paymentdemo.domain.payment.enums.PaymentRetryStatus;
 import com.bootcamp.paymentdemo.domain.payment.enums.PaymentStatus;
 import com.bootcamp.paymentdemo.domain.payment.repository.PaymentRepository;
 import com.bootcamp.paymentdemo.domain.payment.repository.PaymentRetryTaskRepository;
+import com.bootcamp.paymentdemo.domain.point.service.PointTransactionService;
+import com.bootcamp.paymentdemo.domain.product.service.ProductService;
 import com.bootcamp.paymentdemo.domain.refund.entity.Refund;
 import com.bootcamp.paymentdemo.domain.refund.enums.CancelFlow;
 import com.bootcamp.paymentdemo.domain.refund.repository.RefundRepository;
@@ -31,6 +35,10 @@ public class PaymentLifecycleService {
     private final PortOneApiClient portOneApiClient;
     private final PortOneProperties portOneProperties;
     private final PaymentRetryTaskRepository paymentRetryTaskRepository;
+    private final OrderService orderService;
+    private final ProductService productService;
+    private final PointTransactionService pointTransactionService;
+    private final MembershipService membershipService;
 
     // 페미언트 객제조회(락 x)
     @Transactional(readOnly = true)
@@ -52,10 +60,10 @@ public class PaymentLifecycleService {
         }
     }
 
-    // 포트원결제금액과 DB결제금액 검증 상점ID검증
+    // 포트원결제금액과  페이먼트 결제금액검증 상점ID검증
     public void validateApprovedPayment(Payment payment, PortOnePaymentInfoResponse portOnePayment) {
         Long paidAmount = portOnePayment.resolveTotalAmount();
-        Long expectedAmount = payment.getOrder().getTotalAmount().longValue();
+        Long expectedAmount = payment.getPgAmount();
 
         if (paidAmount == null || !paidAmount.equals(expectedAmount)) {
             throw new IllegalStateException(
@@ -84,57 +92,26 @@ public class PaymentLifecycleService {
         }
 
         validateApprovedPayment(payment, portOnePayment);  // 포트원결제금액과 DB결제금액 검증 상점ID검증
+        completePaymentInternal(payment); // 결제완료처리
+        return payment;
+    }
 
-        // TODO: 주문 도메인 팀 구현 필요
-        // - 입력값: payment.getOrder().getId() 또는 payment.getOrder().getOrderId()
-        // - 책임: 주문 상태를 PENDING -> PAID 로 변경
-        // - 규칙:
-        //   1) 현재 주문이 PENDING 일 때만 완료 처리
-        //   2) 이미 PAID 라면 멱등 처리(재호출이어도 예외 없이 종료)
-        //   3) CANCELLED 등 완료 불가 상태라면 예외를 던져 상위 결제 트랜잭션이 실패를 감지할 수 있어야 함
-        // - 주의: 예외를 내부에서 삼키지 말고 밖으로 전파해야 보상 취소로 이어질 수 있음
-        // orderService.completeOrder(payment.getOrder().getId());
+    // 모든금액 포인트로 결제했을경우 완료로직
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Payment completePointOnlyPayment(String paymentId) {
+        Payment payment = paymentRepository.findWithLockByPaymentId(paymentId).orElseThrow(
+                () -> new IllegalArgumentException("결제 시도 내역이 없습니다. paymentId=" + paymentId)
+        );
 
-        // TODO: 상품/재고 도메인 팀 구현 필요
-        // - 입력값: payment.getOrder().getId()
-        // - 책임: 주문상품 목록 기준으로 각 상품 재고를 주문 수량만큼 차감
-        // - 규칙:
-        //   1) 주문 ID로 주문상품 목록 조회
-        //   2) 각 상품 재고를 quantity 만큼 차감
-        //   3) 재고 부족 시 예외를 던져 전체 작업이 롤백되게 해야 함
-        //   4) 한 상품이라도 실패하면 부분 차감이 남지 않도록 트랜잭션으로 묶여야 함
-        // inventoryService.decreaseStockByOrder(payment.getOrder().getId());
+        if (payment.isAlreadyProcessed()) { // 멱등처리
+            return payment;
+        }
 
-        // TODO: 포인트 도메인 팀 구현 필요
-        // - 입력값: customerId, orderPk, paidAmount
-        // - 책임: 결제 성공 후 적립 포인트 계산 및 스냅샷/상세/이력 반영
-        // - 규칙:
-        //   1) 고객 등급/정책 기준으로 적립 포인트 계산
-        //   2) 포인트 스냅샷 증가
-        //   3) PointDetail / PointHistory 등 이력 저장
-        //   4) 같은 주문으로 중복 적립되지 않도록 멱등 처리 필요
-        // pointTransactionService.earnPointAfterPayment(
-        //     payment.getOrder().getCustomer().getId(),
-        //     payment.getOrder().getId(),
-        //     payment.getAmount()
-        // );
+        if (payment.getPgAmount() != 0L) {
+            throw new IllegalStateException("0원 결제 전용 완료 처리입니다. paymentId=" + paymentId);
+        }
 
-        // TODO: 멤버십 도메인 팀 구현 필요
-        // - 입력값: customerId, paidAmount
-        // - 책임: 누적 결제금액 반영 및 등급 재판정
-        // - 규칙:
-        //   1) 멤버십 레코드 조회
-        //   2) paidAmount 를 누적 결제금액에 반영
-        //   3) 기준 충족 시 등급/적립률 갱신
-        //   4) 실패 시 예외를 던져 결제 상위 로직이 보상 취소로 이어갈 수 있어야 함
-        // membershipService.updateMembershipAfterPayment(
-        //     payment.getOrder().getCustomer().getId(),
-        //     payment.getAmount()
-        // );
-
-        payment.confirm(); // 페이먼트 상태변경
-
-        log.info("결제 내부 처리 완료 - paymentId={}, orderId={}", paymentId, payment.getOrder().getOrderId());
+        completePaymentInternal(payment); // 결제완료처리
         return payment;
     }
 
@@ -151,6 +128,15 @@ public class PaymentLifecycleService {
         Payment payment = paymentRepository.findWithLockByPaymentId(paymentId).orElseThrow( // 락걸기
                 () -> new IllegalArgumentException("결제 시도 내역이 없습니다. paymentId=" + paymentId)
         );
+
+        if (payment.getPgAmount() == 0L) {
+            applyCancelSuccess(payment, reason, cancelFlow);
+            if (cancelFlow == CancelFlow.COMPENSATION) {
+                return "포인트 전액 결제 보상 취소 성공";
+            }
+            return "포인트 전액 결제 환불 성공";
+        }
+
         String cancelIdempotencyKey = portOneApiClient.buildCancelIdempotencyKey(paymentId); // 멱등키 생성
 
         try {
@@ -221,34 +207,16 @@ public class PaymentLifecycleService {
         payment.refund();
 
         if (cancelFlow == CancelFlow.REFUND) {
-            markExistingRefundRefunded(payment);
-            // TODO: 일반 환불 도메인 후처리 구현 필요
-            // - 전제: 이 경로는 이미 결제 완료 후 후속 작업(주문 완료, 재고 차감, 포인트 적립/사용)이
-            //   반영되었을 수 있는 결제를 사용자가 환불하는 흐름이다.
-            // - 책임: "실제로 반영된" 주문/재고/포인트 효과를 환불 기준으로 되돌린다.
-            // - 규칙:
-            //   1) 주문 도메인:
-            //      - 입력값: payment.getOrder().getId()
-            //      - 환불 성공 후 주문 상태를 최종 취소/환불 상태로 맞춘다.
-            //      - 이미 취소/환불 완료된 주문이면 멱등 처리해야 한다.
-            //      - 취소 불가 상태 정책이 있으면 예외를 전파해 상위 로직이 실패를 감지할 수 있어야 한다.
-            //      - 재시도 큐를 통해 늦게 성공한 케이스도 동일한 최종 상태를 보장해야 한다.
-            // orderService.cancelOrder(payment.getOrder().getId());
-            //
-            //   2) 상품/재고 도메인:
-            //      - 입력값: payment.getOrder().getId()
-            //      - 해당 주문으로 "실제로 차감했던" 재고만 정확히 한 번 복구한다.
-            //      - 이미 복구된 주문이면 중복 복구가 일어나지 않도록 멱등 처리해야 한다.
-            //      - 주문상품 기준 전체 복구가 보장되어야 하며 부분 복구 상태가 남지 않도록 해야 한다.
-            // inventoryService.restoreStockByOrder(payment.getOrder().getId());
-            //
-            //   3) 포인트 도메인:
-            //      - 입력값: payment.getOrder().getOrderId() 또는 order PK
-            //      - 결제 시 사용한 포인트가 있으면 환원한다.
-            //      - 결제 성공 시 적립했던 포인트가 있으면 회수 또는 무효화한다.
-            //      - 이미 환원/회수 이력이 있으면 중복 반영하지 않도록 멱등 처리해야 한다.
-            //      - 포인트 스냅샷, 상세, 이력이 서로 불일치하지 않도록 함께 맞춰야 한다.
-            // pointTransactionService.refundUsedPoints(payment.getOrder().getOrderId());
+            markExistingRefundRefunded(payment); // 환불성공상태변경
+            if (payment.getUsePoint() > 0L) {
+                pointTransactionService.refundUsedPoints(payment.getOrder().getOrderId()); // 포인트복구
+            }
+            if (payment.getPgAmount() > 0L) {
+                pointTransactionService.cancelEarnedPoints(String.valueOf(payment.getOrder().getId())); // 포인트 회수
+            }
+            productService.restoreStockByOrder(payment.getOrder().getId()); // 재고복구
+            orderService.cancelOrder(payment.getOrder().getId());  // 주문상태변경
+            membershipService.refreshUserMembership(payment.getOrder().getCustomer().getId()); // 멤버쉽 등급재확인
         } else {
             upsertRefundForCompensation(payment, reason);
             // 보상 취소는 completeApprovedPayment()의 REQUIRES_NEW 트랜잭션 롤백 이후 수행된다.
@@ -262,7 +230,7 @@ public class PaymentLifecycleService {
         refundRepository.findByPayment(payment) //환불이 이미있다면 환불성공으로해주고 없다면 환불만들어서 성공으로 남겨주기
                 .ifPresentOrElse(
                         Refund::markRefunded,
-                        () -> refundRepository.save(Refund.createRefunded(payment, payment.getAmount(), reason))
+                        () -> refundRepository.save(Refund.createRefunded(payment, payment.getPgAmount(), reason))
                 );
     }
 
@@ -312,5 +280,28 @@ public class PaymentLifecycleService {
             return;
         }
         paymentRetryTaskRepository.save(PaymentRetryTask.cancelTask(paymentId, idempotencyKey, reason, cancelFlow)); // 테스크등록
+    }
+
+    // 결제확정후로직
+    private void completePaymentInternal(Payment payment) {
+        Long orderId = payment.getOrder().getId();
+        Long customerId = payment.getOrder().getCustomer().getId();
+
+        //포인트사용
+        if (payment.getUsePoint() > 0L) {
+            pointTransactionService.usePoints(customerId, payment.getUsePoint(), payment.getOrder().getOrderId());
+        }
+
+        orderService.completeOrder(orderId); // 주문상태변경
+        productService.decreaseStockByOrder(orderId); // 물품재고수량변경
+
+        // 결제후 포인트적립 & 멤버쉽 업데이트
+        if (payment.getPgAmount() > 0L) {
+            pointTransactionService.earnPointAfterPayment(customerId, orderId, payment.getPgAmount());
+            membershipService.updateMembershipAfterPayment(customerId, payment.getPgAmount());
+        }
+
+        payment.confirm();
+        log.info("결제 내부 처리 완료 - paymentId={}, orderId={}", payment.getPaymentId(), payment.getOrder().getOrderId());
     }
 }

@@ -1,5 +1,6 @@
 package com.bootcamp.paymentdemo.domain.payment.service;
 
+import com.bootcamp.paymentdemo.domain.order.service.OrderService;
 import com.bootcamp.paymentdemo.domain.payment.dto.Response.PortOnePaymentInfoResponse;
 import com.bootcamp.paymentdemo.domain.payment.entity.Payment;
 import com.bootcamp.paymentdemo.domain.payment.enums.PaymentRetryOperation;
@@ -28,6 +29,7 @@ public class PaymentRetryService {
     private final PaymentRepository paymentRepository;
     private final PortOneApiClient portOneApiClient;
     private final PaymentLifecycleService paymentLifecycleService;
+    private final OrderService orderService;
 
     // 재시도 큐에등록해주고, 재시도로직처리하는곳
 
@@ -98,8 +100,8 @@ public class PaymentRetryService {
         try {
             task.markProcessing();
             switch (task.getOperation()) {
-                case VERIFY_PAYMENT -> processVerify(task);
-                case CANCEL_PAYMENT -> processCancel(task);
+                case VERIFY_PAYMENT -> processVerify(task); // 결제재시도
+                case CANCEL_PAYMENT -> processCancel(task); // 결제취소, 환불재시도
             }
         } catch (PortOneApiException e) {
             if (e.isRetryable()) {
@@ -126,12 +128,12 @@ public class PaymentRetryService {
     private void processVerify(PaymentRetryTask task) {
         Payment payment = paymentLifecycleService.getPayment(task.getPaymentId());
 
-        if (payment.isAlreadyProcessed()) {
+        if (payment.isAlreadyProcessed()) { //멱등처리
             task.markSucceeded();
             return;
         }
 
-        PortOnePaymentInfoResponse info = portOneApiClient.getPaymentInfo(task.getPaymentId(), task.getIdempotencyKey());
+        PortOnePaymentInfoResponse info = portOneApiClient.getPaymentInfo(task.getPaymentId(), task.getIdempotencyKey()); //결제조회하기
 
         if (!info.isPaidStatus()) {
             if ("FAILED".equalsIgnoreCase(info.getStatus()) || "CANCELLED".equalsIgnoreCase(info.getStatus())) {
@@ -145,7 +147,7 @@ public class PaymentRetryService {
         }
 
         try {
-            paymentLifecycleService.completeApprovedPayment(task.getPaymentId(), info);
+            paymentLifecycleService.completeApprovedPayment(task.getPaymentId(), info); // 결제완료로직
             task.markSucceeded();
             log.info("VERIFY 재시도 성공 - paymentId={}", task.getPaymentId());
         } catch (Exception processingException) {
@@ -198,19 +200,19 @@ public class PaymentRetryService {
         // 그리고 하나씩 task가 있는지 없는지 검사
         // task가 없다면 status = EXPIRED 로 변환
         // EXPIRED 로 변환했다면 주문상태를 변경할지말지 정책을정해야함
-        List<Payment> payments = paymentRepository.findByStatusAndExpiresAtLessThanEqual(PaymentStatus.READY, LocalDateTime.now());
+        List<Payment> payments = paymentRepository.findByStatusAndExpiresAtLessThanEqual(PaymentStatus.READY, LocalDateTime.now()); // 상태가 레디면서 만료시간지난것찾기
         List<String> paymentIds = payments.stream()
                 .map(Payment::getPaymentId)
                 .toList();
-        Set<String> paymentIdsWithTask =
+        Set<String> paymentIdsWithTask = // 문제없는 테스크가 있는 것들 조회
                 paymentRetryTaskRepository.findPaymentIdsByPaymentIdInAndOperationAndStatusIn(
                         paymentIds,
                         PaymentRetryOperation.VERIFY_PAYMENT,
                         Set.of(PaymentRetryStatus.PENDING, PaymentRetryStatus.PROCESSING)
                 );
         for (Payment payment : payments) {
-            if (!paymentIdsWithTask.contains(payment.getPaymentId())) {
-                // TODO: 주문에서 결제대기 -> 주문취소로 바꾸는 로직 들어갈곳
+            if (!paymentIdsWithTask.contains(payment.getPaymentId())) { // 전체에서 테스크가 있는것들이 아닌것 == 테스크없는것
+                orderService.cancelOrder(payment.getOrder().getId());
                 payment.expire();
             }
         }

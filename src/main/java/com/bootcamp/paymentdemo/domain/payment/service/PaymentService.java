@@ -7,7 +7,6 @@ import com.bootcamp.paymentdemo.domain.payment.dto.Request.PortOneWebhookRequest
 import com.bootcamp.paymentdemo.domain.payment.dto.Response.*;
 import com.bootcamp.paymentdemo.domain.payment.entity.Payment;
 import com.bootcamp.paymentdemo.domain.payment.repository.PaymentRepository;
-import com.bootcamp.paymentdemo.domain.refund.enums.CancelFlow;
 import com.bootcamp.paymentdemo.global.error.PortOneApiException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,15 +50,23 @@ public class PaymentService {
                 () -> new IllegalArgumentException("없는 주문번호")
         );
 
+        long point = request.pointsToUse() == null ? 0L : request.pointsToUse();
+
         Long expectedAmount = order.getTotalAmount().longValue();
         if (!expectedAmount.equals(request.totalAmount())) {
             throw new IllegalArgumentException("주문 금액과 결제 금액은 같아야 합니다.");
+        }
+        if (point < 0) {
+            throw new IllegalArgumentException("사용 포인트는 0 이상이어야 합니다.");
+        }
+        if (point > expectedAmount) {
+            throw new IllegalArgumentException("사용 포인트가 주문 금액보다 클 수 없습니다.");
         }
 
         paymentAccessValidator.validateOrderOwnership(authentication, order); // 주문한유저가 맞는지확인
 
         String paymentId = generatePaymentId();  // 결제고유ID 발급
-        Payment payment = Payment.of(order, expectedAmount, paymentId); // 페이먼트객체생성
+        Payment payment = Payment.of(order, expectedAmount, paymentId,point); // 페이먼트객체생성
         paymentRepository.save(payment);
 
         return PaymentCreateReadyResponse.checkoutReady(payment);
@@ -84,6 +91,20 @@ public class PaymentService {
             return PaymentConfirmResponse.alreadyProcessed(payment);
         }
 
+        // 주문금액전부 포인트인경우
+        if (payment.getPgAmount() == 0L) {
+            try {
+                paymentLifecycleService.completePointOnlyPayment(paymentId);
+            } catch (Exception processingException) {
+                return PaymentConfirmResponse.failed(
+                        paymentLifecycleService.getPayment(paymentId),
+                        "내부 처리 실패: " + processingException.getMessage()
+                );
+            }
+            return PaymentConfirmResponse.success(paymentLifecycleService.getPayment(paymentId));
+        }
+
+
         PortOnePaymentInfoResponse portOnePayment; // 포트원조회에서 받을 바디
         String verifyIdempotencyKey = portOneApiClient.buildVerifyIdempotencyKey(paymentId); //멱등키 발급
         try {
@@ -104,9 +125,9 @@ public class PaymentService {
         }
         if (portOnePayment.isPaidStatus()) {
             try {
-                paymentLifecycleService.completeApprovedPayment(paymentId, portOnePayment);
+                paymentLifecycleService.completeApprovedPayment(paymentId, portOnePayment); // 결제완료로직
             } catch (Exception processingException) {
-                String compensationMessage = paymentLifecycleService.compensateApprovedPayment(
+                String compensationMessage = paymentLifecycleService.compensateApprovedPayment( // 취소진행
                         paymentId,
                         "결제 확정 후 내부 처리 실패로 취소"
                 );

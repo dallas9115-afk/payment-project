@@ -39,7 +39,7 @@ public class RefundService {
         String reason = request.reason();
         Refund refund = existingRefund;
         if (refund == null) {  // 환불 객체생성
-            refund = Refund.createRequested(payment, payment.getAmount(), reason);
+            refund = Refund.createRequested(payment, payment.getPgAmount(), reason);
             refundRepository.save(refund);
         }
 
@@ -60,6 +60,7 @@ public class RefundService {
         return RefundResponse.failed(updatedRefund, resultMessage);
     }
 
+    // 딱히 쓰진않는 조회용 메서드
     public RefundSummaryResponse getRefund(Authentication authentication, String paymentId) {
         Payment payment = paymentAccessValidator.getAuthorizedPayment(authentication, paymentId);
         Refund refund = refundRepository.findByPayment(payment).orElseThrow(

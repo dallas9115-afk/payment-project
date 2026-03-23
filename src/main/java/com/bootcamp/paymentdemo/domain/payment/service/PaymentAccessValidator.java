@@ -1,5 +1,7 @@
 package com.bootcamp.paymentdemo.domain.payment.service;
 
+import com.bootcamp.paymentdemo.domain.customer.entity.Customer;
+import com.bootcamp.paymentdemo.domain.customer.repository.CustomerRepository;
 import com.bootcamp.paymentdemo.domain.order.entity.Order;
 import com.bootcamp.paymentdemo.domain.payment.entity.Payment;
 import com.bootcamp.paymentdemo.domain.payment.repository.PaymentRepository;
@@ -12,7 +14,9 @@ import org.springframework.stereotype.Component;
 public class PaymentAccessValidator {
 
     private final PaymentRepository paymentRepository;
+    private final CustomerRepository customerRepository;
 
+    //로그인 했는지 검증
     public void validateAuthenticated(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new IllegalStateException("인증된 사용자만 요청할 수 있습니다.");
@@ -24,6 +28,7 @@ public class PaymentAccessValidator {
         }
     }
 
+    // 커스터머 본인주문인지 검증
     public void validateOrderOwnership(Authentication authentication, Order order) {
         String authenticatedEmail = extractAuthenticatedEmail(authentication);
         String orderOwnerEmail = order.getCustomer().getEmail();
@@ -33,10 +38,12 @@ public class PaymentAccessValidator {
         }
     }
 
+    // 커스터머 본인주문인지 검증
     public void validatePaymentOwnership(Authentication authentication, Payment payment) {
         validateOrderOwnership(authentication, payment.getOrder());
     }
 
+    // 종합검증
     public Payment getAuthorizedPayment(Authentication authentication, String paymentId) {
         validateAuthenticated(authentication);
 
@@ -47,6 +54,17 @@ public class PaymentAccessValidator {
         return payment;
     }
 
+    // authentication에서 이메일뽑아서 이메일로 커스터머찾기
+    public Customer getAuthenticatedCustomer(Authentication authentication) {
+        validateAuthenticated(authentication);
+
+        String authenticatedEmail = extractAuthenticatedEmail(authentication);
+        return customerRepository.findByEmail(authenticatedEmail).orElseThrow(
+                () -> new IllegalArgumentException("인증된 사용자를 찾을 수 없습니다. email=" + authenticatedEmail)
+        );
+    }
+
+    // 이메일 가져오기
     private String extractAuthenticatedEmail(Authentication authentication) {
         Object principal = authentication.getPrincipal();
 
