@@ -45,7 +45,7 @@ jobs:
             echo "2. 최신 이미지 다운로드"
             sudo docker pull ${{ secrets.DOCKER_USERNAME }}/infra-skeleton:latest
             
-            echo "3. 도커 컨테이너 실행 (RDS 환경변수 주입)"
+            echo "3. 도커 컨테이너 실행 (RDS, PortOne, JWT 환경변수 주입)"
             #  -e 옵션을 통해 깃허브 시크릿 값을 도커 컨테이너 내부로 전달합니다.
             sudo docker run -d --name infra-skeleton -p 8080:8080 \
               -e RDS_HOSTNAME="${{ secrets.RDS_HOSTNAME }}" \
@@ -55,6 +55,7 @@ jobs:
               -e PORTONE_STORE_ID="${{ secrets.PORTONE_STORE_ID }}" \
               -e PORTONE_CHANNEL_KG="${{ secrets.PORTONE_CHANNEL_KG }}" \
               -e PORTONE_CHANNEL_TOSS="${{ secrets.PORTONE_CHANNEL_TOSS }}" \
+              -e JWT_SECRET_KEY="${{ secrets.JWT_SECRET_KEY }}" \
               ${{ secrets.DOCKER_USERNAME }}/infra-skeleton:latest
             
             echo "4. 사용하지 않는 찌꺼기 이미지 삭제 (용량 확보)"

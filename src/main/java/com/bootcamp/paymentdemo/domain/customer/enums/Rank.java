@@ -5,8 +5,11 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum Grade {
-    NORMAL, // 일반 회원
-    VIP,    // VIP 회원
-    VVIP    // VVIP 회원
+public enum Rank {
+
+    NORMAL("일반"),
+    VIP("VIP"),
+    VVIP("VVIP");
+
+    private final String displayName;
 }
