@@ -19,9 +19,9 @@ FROM amazoncorretto:17-alpine
 
 WORKDIR /app
 
-# 1단계(build)에서 생성된 jar 파일만 쏙 뽑아서 현재 컨테이너로 복사
-# build/libs 폴더 밑에 생성된 *-SNAPSHOT.jar 파일을 app.jar라는 이름으로 가져옴
-COPY --from=build /app/build/libs/*-SNAPSHOT.jar app.jar
+# (수정 전) COPY --from=build /app/build/libs/*[!plain].jar app.jar
+# (수정 후) 1.0.0.jar 로 끝나는 진짜 실행 파일만 복사
+COPY --from=build /app/build/libs/*1.0.0.jar app.jar
 
 # 서버가 사용할 포트 번호 명시 (문서화 용도)
 EXPOSE 8080

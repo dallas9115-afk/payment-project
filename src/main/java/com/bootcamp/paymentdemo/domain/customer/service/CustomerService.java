@@ -5,7 +5,7 @@ import com.bootcamp.paymentdemo.domain.customer.dto.request.CustomerSignupReques
 import com.bootcamp.paymentdemo.domain.customer.dto.response.CustomerLoginResponse;
 import com.bootcamp.paymentdemo.domain.customer.dto.response.CustomerSignupResponse;
 import com.bootcamp.paymentdemo.domain.customer.entity.Customer;
-import com.bootcamp.paymentdemo.domain.customer.enums.Grade;
+import com.bootcamp.paymentdemo.domain.customer.enums.Rank;
 import com.bootcamp.paymentdemo.domain.customer.repository.CustomerRepository;
 import com.bootcamp.paymentdemo.global.error.CommonError;
 import com.bootcamp.paymentdemo.global.error.CommonException;
@@ -19,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CustomerService {
     private final CustomerRepository customerRepository;
-    private final MembershipService membershipService;
+//    private final MembershipService membershipService;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -35,12 +35,12 @@ public class CustomerService {
                         .email(request.email())
                         .password(passwordEncoder.encode(request.password()))
                         .phoneNumber(request.phoneNumber())
-                        .grade(Grade.NORMAL)
+                        .rank(Rank.NORMAL)
                         .currentPoint(0L)
                         .build()
         );
 
-        membershipService.createDefaultMembership(customer);
+//        membershipService.createDefaultMembership(customer);
 
         return CustomerSignupResponse.from(customer);
     }

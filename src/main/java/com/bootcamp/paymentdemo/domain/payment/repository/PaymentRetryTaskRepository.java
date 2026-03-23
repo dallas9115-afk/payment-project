@@ -14,6 +14,7 @@ import java.util.Set;
 
 public interface PaymentRetryTaskRepository extends JpaRepository<PaymentRetryTask, Long> {
 
+    // 결제창 그냥 닫은것 찾는 JPQL
     @Query("""
     select distinct t.paymentId
     from PaymentRetryTask t
@@ -27,11 +28,13 @@ public interface PaymentRetryTaskRepository extends JpaRepository<PaymentRetryTa
             @Param("statuses") Collection<PaymentRetryStatus> statuses
     );
 
+    // 테스크에 등록된 재시도 해야하는것찾기
     List<PaymentRetryTask> findTop100ByStatusAndNextAttemptAtLessThanEqualOrderByIdAsc(
             PaymentRetryStatus status,
             LocalDateTime now
     );
 
+    // 이미 테스크 등록되었는지 찾기
     boolean existsByPaymentIdAndOperationAndStatusIn(
             String paymentId,
             PaymentRetryOperation operation,
