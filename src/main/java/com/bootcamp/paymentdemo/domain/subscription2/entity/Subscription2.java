@@ -8,7 +8,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "subscriptions", indexes = {
+@Table(name = "subscriptions2", indexes = {
         @Index(name = "idx_subscription_next_billing", columnList = "nextBillingDate, status")
 })
 @Getter
