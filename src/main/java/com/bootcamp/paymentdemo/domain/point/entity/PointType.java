@@ -4,5 +4,6 @@ public enum PointType {
     EARNED,
     ROLLBACK,
     USED,
-    CANCEL;
+    CANCEL,
+    EXPIRED;
 }
