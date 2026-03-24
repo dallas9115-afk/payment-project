@@ -9,7 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "subscription_plan")
+@Table(name = "subscription_plan2")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class SubscriptionPlan2 extends BaseEntity {

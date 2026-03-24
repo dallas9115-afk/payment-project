@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(
-        name = "subscription_billing",
+        name = "subscription_billing2",
         uniqueConstraints = {
                 @UniqueConstraint(
                         name = "unique_subscription_scheduled_date",
