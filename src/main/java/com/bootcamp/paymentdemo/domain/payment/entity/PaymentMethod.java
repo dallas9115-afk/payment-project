@@ -1,6 +1,7 @@
 package com.bootcamp.paymentdemo.domain.payment.entity;
 
 import com.bootcamp.paymentdemo.domain.customer.entity.Customer;
+import com.bootcamp.paymentdemo.domain.payment.dto.Request.PaymentMethodCreateRequest;
 import com.bootcamp.paymentdemo.domain.payment.enums.PaymentMethodStatus;
 import com.bootcamp.paymentdemo.domain.payment.enums.PgProvider;
 import com.bootcamp.paymentdemo.global.common.BaseEntity;
@@ -53,4 +54,16 @@ public class PaymentMethod extends BaseEntity {
 
     private LocalDateTime closedAt;
 
+
+    public static PaymentMethod create(Customer customer,  PaymentMethodCreateRequest request) {
+        PaymentMethod paymentMethod = new PaymentMethod();
+        paymentMethod.customer = customer;
+        paymentMethod.billingKey = request.billingKey();
+        paymentMethod.customerUid =  request.customerUid();
+        paymentMethod.provider = request.provider();
+        paymentMethod.status = PaymentMethodStatus.ACTIVE;
+        paymentMethod.isDefault = request.isDefault();
+        paymentMethod.closedAt = LocalDateTime.now().plusMonths(1);
+        return paymentMethod;
+    }
 }
