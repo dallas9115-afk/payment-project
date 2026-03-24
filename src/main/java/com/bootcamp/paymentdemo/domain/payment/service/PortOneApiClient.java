@@ -41,10 +41,6 @@ public class PortOneApiClient {
      * @param paymentId 우리 시스템/PortOne에서 공통으로 사용하는 결제 식별자
      * @return PortOnePaymentInfoResponse (상태, 금액, 상점ID 등 검증용 정보)
      */
-    public PortOnePaymentInfoResponse getPaymentInfo(String paymentId) {
-        return getPaymentInfo(paymentId, buildVerifyIdempotencyKey(paymentId));
-    }
-
     public PortOnePaymentInfoResponse getPaymentInfo(String paymentId, String idempotencyKey) {
         String url = portOneProperties.getApi().getBaseUrl() + "/payments/" + paymentId;
 
@@ -94,26 +90,47 @@ public class PortOneApiClient {
      *
      * 문서 기준으로 reason은 body에 넣어야 하므로 JSON 바디로 전달합니다.
      */
-    public PortOnePaymentInfoResponse paymentCancel(String paymentId, String reason) {
-        return paymentCancel(paymentId, reason, buildCancelIdempotencyKey(paymentId));
+    public PortOnePaymentInfoResponse paymentCancel(
+            String paymentId,
+            String reason,
+            String idempotencyKey,
+            Long amount // 기본값 null
+    ) {
+        String url = portOneProperties.getApi().getBaseUrl() + "/payments/" + paymentId + "/cancel";
+        HttpHeaders headers = buildJsonHeaders(idempotencyKey);
+        Map<String, Object> body = buildCancelRequestBody(reason, amount);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+
+        return executeCancelRequest(paymentId, url, entity);
     }
 
-    public PortOnePaymentInfoResponse paymentCancel(String paymentId, String reason, String idempotencyKey) {
-        String url = portOneProperties.getApi().getBaseUrl() + "/payments/" + paymentId + "/cancel";
-
+    // 멱등키 헤더
+    private HttpHeaders buildJsonHeaders(String idempotencyKey) {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "PortOne " + portOneProperties.getApi().getSecret());
         headers.set("Idempotency-Key", quoteIdempotencyKey(idempotencyKey));
         headers.set("Content-Type", "application/json");
+        return headers;
+    }
 
+    // 바디 만들기
+    private Map<String, Object> buildCancelRequestBody(String reason, Long amount) {
         Map<String, Object> body = new HashMap<>();
-        // 문서 기준: 취소 사유(reason)는 body로 보냅니다.
         body.put("reason", reason);
         body.put("storeId", portOneProperties.getStore().getId());
         body.put("skipWebhook", false);
 
-        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+        if (amount != null) {
+            body.put("amount", amount);
+        }
+        return body;
+    }
 
+    private PortOnePaymentInfoResponse executeCancelRequest(
+            String paymentId,
+            String url,
+            HttpEntity<Map<String, Object>> entity
+    ) {
         try {
             ResponseEntity<PortOnePaymentInfoResponse> response = restTemplate.exchange(
                     url,
@@ -148,7 +165,6 @@ public class PortOneApiClient {
             throw new PortOneApiException("포트원 결제 취소 중 오류가 발생했습니다.", true);
         }
     }
-
 
     /**
      * 포트원 빌링키 결제 요청 (정기결제)

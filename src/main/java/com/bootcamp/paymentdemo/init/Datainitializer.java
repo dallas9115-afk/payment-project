@@ -1,21 +1,49 @@
 package com.bootcamp.paymentdemo.init;
 
+import com.bootcamp.paymentdemo.domain.customer.entity.Customer;
+import com.bootcamp.paymentdemo.domain.customer.enums.Rank;
+import com.bootcamp.paymentdemo.domain.customer.repository.CustomerRepository;
 import com.bootcamp.paymentdemo.domain.product.entity.Product;
 import com.bootcamp.paymentdemo.domain.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
 public class Datainitializer implements CommandLineRunner {
 
+    private static final String TEST_EMAIL = "admin@test.com";
+
     private final ProductRepository productRepository;
+    private final CustomerRepository customerRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public void run(String...args){
+        seedTestCustomer();
+        seedProducts();
+    }
 
+    private void seedTestCustomer() {
+        if (customerRepository.existsByEmail(TEST_EMAIL)) {
+            return;
+        }
 
+        customerRepository.save(
+                Customer.builder()
+                        .name("테스트 관리자")
+                        .email(TEST_EMAIL)
+                        .password(passwordEncoder.encode("admin1234"))
+                        .phoneNumber("010-1234-5678")
+                        .rank(Rank.NORMAL)
+                        .currentPoint(50000L)
+                        .build()
+        );
+    }
+
+    private void seedProducts() {
         // 더미 데이터가 쌓이지 않게 방지.
         if (productRepository.count() > 0) {
             return;
@@ -61,6 +89,5 @@ public class Datainitializer implements CommandLineRunner {
                 "과자"
         ));
     }
-
-    }
+}
 

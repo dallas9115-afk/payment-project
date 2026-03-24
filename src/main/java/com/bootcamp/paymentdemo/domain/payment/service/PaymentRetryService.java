@@ -9,13 +9,12 @@ import com.bootcamp.paymentdemo.domain.payment.entity.PaymentRetryTask;
 import com.bootcamp.paymentdemo.domain.payment.enums.PaymentStatus;
 import com.bootcamp.paymentdemo.domain.payment.repository.PaymentRepository;
 import com.bootcamp.paymentdemo.domain.payment.repository.PaymentRetryTaskRepository;
+import com.bootcamp.paymentdemo.domain.refund.dto.RefundCalculation;
 import com.bootcamp.paymentdemo.domain.refund.enums.CancelFlow;
 import com.bootcamp.paymentdemo.global.error.PortOneApiException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -31,55 +30,10 @@ public class PaymentRetryService {
     private final PaymentLifecycleService paymentLifecycleService;
     private final OrderService orderService;
 
-    // 재시도 큐에등록해주고, 재시도로직처리하는곳
-
     /**
-     * 결제 검증 재시도 작업 등록
-     * - 이미 같은 작업이 큐에 있으면 중복 등록하지 않습니다.
-     */
-    @Transactional
-    public void enqueueVerifyRetry(String paymentId, String idempotencyKey) {
-        boolean alreadyExists = paymentRetryTaskRepository.existsByPaymentIdAndOperationAndStatusIn(
-                paymentId,
-                PaymentRetryOperation.VERIFY_PAYMENT,
-                Set.of(PaymentRetryStatus.PENDING, PaymentRetryStatus.PROCESSING)
-        );
-        if (alreadyExists) {
-            return;
-        }
-        paymentRetryTaskRepository.save(PaymentRetryTask.verifyTask(paymentId, idempotencyKey));
-        log.warn("VERIFY 재시도 작업 등록 - paymentId={}, key={}", paymentId, idempotencyKey);
-    }
-
-    /**
-     * 결제 취소 재시도 작업 등록
-     * - 보상 취소 실패 시 호출됩니다.
-     */
-    @Transactional
-    public void enqueueCancelRetry(String paymentId, String idempotencyKey, String reason) {
-        enqueueCancelRetry(paymentId, idempotencyKey, reason, CancelFlow.COMPENSATION);
-    }
-
-    @Transactional
-    public void enqueueCancelRetry(String paymentId, String idempotencyKey, String reason, CancelFlow cancelFlow) {
-        boolean alreadyExists = paymentRetryTaskRepository.existsByPaymentIdAndOperationAndStatusIn(
-                paymentId,
-                PaymentRetryOperation.CANCEL_PAYMENT,
-                Set.of(PaymentRetryStatus.PENDING, PaymentRetryStatus.PROCESSING)
-        );
-        if (alreadyExists) {
-            return;
-        }
-        paymentRetryTaskRepository.save(PaymentRetryTask.cancelTask(paymentId, idempotencyKey, reason, cancelFlow));
-        log.error("CANCEL 재시도 작업 등록 - paymentId={}, key={}, reason={}, flow={}",
-                paymentId, idempotencyKey, reason, cancelFlow);
-    }
-
-    /**
-     * 스케줄러가 주기적으로 호출하는 메서드
+     * 스케줄러가 주기적으로 호출하는 재시도 실행 진입점
      * - 지금 시각 기준 실행 가능한 PENDING 작업을 최대 100건 가져와 처리합니다.
      */
-    @Transactional
     public void processPendingTasks() {
         List<PaymentRetryTask> tasks =
                 paymentRetryTaskRepository.findTop100ByStatusAndNextAttemptAtLessThanEqualOrderByIdAsc(
@@ -94,26 +48,27 @@ public class PaymentRetryService {
 
     /**
      * 개별 작업 처리 공통 래퍼
-     * - PortOne 오류는 retryable 플래그에 따라 재시도/최종실패를 결정
+     * - PortOneApiException은 retryable 플래그에 따라 재시도/최종실패를 결정합니다.
+     * - 기타 예외는 일시적인 내부 오류 가능성을 보고 일단 재시도 대상으로 둡니다.
      */
     private void processTask(PaymentRetryTask task) {
         try {
             task.markProcessing();
             switch (task.getOperation()) {
-                case VERIFY_PAYMENT -> processVerify(task); // 결제재시도
-                case CANCEL_PAYMENT -> processCancel(task); // 결제취소, 환불재시도
+                case VERIFY_PAYMENT -> processVerify(task);
+                case CANCEL_PAYMENT -> processCancel(task);
             }
         } catch (PortOneApiException e) {
             if (e.isRetryable()) {
                 task.scheduleRetry(e.getMessage());
-                handleRetryTaskFinalFailure(task);
+                handleRetryTaskFinalFailure(task); // 최대 재시도 횟수를 넘겨 FAILED로 바뀐 경우만 후속 실패 처리
             } else {
                 task.markFailedFinal(e.getMessage());
                 handleRetryTaskFinalFailure(task);
             }
             log.error("재시도 작업 처리 실패(포트원) - taskId={}, operation={}, paymentId={}, retryable={}, error={}",
                     task.getId(), task.getOperation(), task.getPaymentId(), e.isRetryable(), e.getMessage(), e);
-        } catch (Exception e) {
+        } catch (Exception e) { // 예상하지 못한 예외도 우선 재시도 대상으로 둔다.
             task.scheduleRetry(e.getMessage());
             handleRetryTaskFinalFailure(task);
             log.error("재시도 작업 처리 실패 - taskId={}, operation={}, paymentId={}, error={}",
@@ -128,13 +83,15 @@ public class PaymentRetryService {
     private void processVerify(PaymentRetryTask task) {
         Payment payment = paymentLifecycleService.getPayment(task.getPaymentId());
 
-        if (payment.isAlreadyProcessed()) { //멱등처리
+        if (payment.isAlreadyProcessed()) {
             task.markSucceeded();
             return;
         }
 
-        PortOnePaymentInfoResponse info = portOneApiClient.getPaymentInfo(task.getPaymentId(), task.getIdempotencyKey()); //결제조회하기
+        PortOnePaymentInfoResponse info =
+                portOneApiClient.getPaymentInfo(task.getPaymentId(), task.getIdempotencyKey());
 
+        // PAID가 아니면 최종 실패 상태인지, 아직 미확정 상태인지 구분해 처리한다.
         if (!info.isPaidStatus()) {
             if ("FAILED".equalsIgnoreCase(info.getStatus()) || "CANCELLED".equalsIgnoreCase(info.getStatus())) {
                 paymentLifecycleService.markFailed(task.getPaymentId());
@@ -147,7 +104,7 @@ public class PaymentRetryService {
         }
 
         try {
-            paymentLifecycleService.completeApprovedPayment(task.getPaymentId(), info); // 결제완료로직
+            paymentLifecycleService.completeApprovedPayment(task.getPaymentId(), info);
             task.markSucceeded();
             log.info("VERIFY 재시도 성공 - paymentId={}", task.getPaymentId());
         } catch (Exception processingException) {
@@ -172,10 +129,12 @@ public class PaymentRetryService {
             return;
         }
 
+        // 환불 재시도면 처음 계산해둔 부분취소 금액을 그대로 재사용한다.
         PortOnePaymentInfoResponse cancelResult = portOneApiClient.paymentCancel(
                 task.getPaymentId(),
                 task.getCancelReason(),
-                task.getIdempotencyKey()
+                task.getIdempotencyKey(),
+                task.getCancelAmount()
         );
 
         String status = cancelResult.getStatus();
@@ -183,7 +142,8 @@ public class PaymentRetryService {
             paymentLifecycleService.markRefundedAfterCancel(
                     task.getPaymentId(),
                     task.getCancelReason(),
-                    task.getCancelFlow()
+                    task.getCancelFlow(),
+                    buildRefundCalculation(task)
             );
             task.markSucceeded();
             log.info("CANCEL 재시도 성공 - paymentId={}, status={}", task.getPaymentId(), status);
@@ -194,49 +154,71 @@ public class PaymentRetryService {
         handleRetryTaskFinalFailure(task);
     }
 
+    /**
+     * READY 상태인데 만료 시간이 지난 결제를 만료 처리합니다.
+     * - VERIFY 재시도 작업이 살아있는 결제는 아직 확인 중인 건으로 보고 건드리지 않습니다.
+     * - 재시도 작업이 없는 결제만 EXPIRED + 주문 취소 처리합니다.
+     */
     public void expirePayments() {
-        // payment 상태가 ready 인것들중에
-        // expiresAt <= now 인것들을 찾음
-        // 그리고 하나씩 task가 있는지 없는지 검사
-        // task가 없다면 status = EXPIRED 로 변환
-        // EXPIRED 로 변환했다면 주문상태를 변경할지말지 정책을정해야함
-        List<Payment> payments = paymentRepository.findByStatusAndExpiresAtLessThanEqual(PaymentStatus.READY, LocalDateTime.now()); // 상태가 레디면서 만료시간지난것찾기
+        List<Payment> payments = paymentRepository.findByStatusAndExpiresAtLessThanEqual(
+                PaymentStatus.READY,
+                LocalDateTime.now()
+        );
         List<String> paymentIds = payments.stream()
                 .map(Payment::getPaymentId)
                 .toList();
-        Set<String> paymentIdsWithTask = // 문제없는 테스크가 있는 것들 조회
+        Set<String> paymentIdsWithTask =
                 paymentRetryTaskRepository.findPaymentIdsByPaymentIdInAndOperationAndStatusIn(
                         paymentIds,
                         PaymentRetryOperation.VERIFY_PAYMENT,
                         Set.of(PaymentRetryStatus.PENDING, PaymentRetryStatus.PROCESSING)
                 );
         for (Payment payment : payments) {
-            if (!paymentIdsWithTask.contains(payment.getPaymentId())) { // 전체에서 테스크가 있는것들이 아닌것 == 테스크없는것
+            if (!paymentIdsWithTask.contains(payment.getPaymentId())) {
                 orderService.cancelOrder(payment.getOrder().getId());
                 payment.expire();
             }
         }
     }
 
+    // 재시도 작업이 최종 FAILED로 끝난 경우에만 결제/환불 상태를 함께 정리한다.
     private void handleRetryTaskFinalFailure(PaymentRetryTask task) {
-        if (task.getStatus() != PaymentRetryStatus.FAILED) { // 테스크 재시도 실패인지확인
+        if (task.getStatus() != PaymentRetryStatus.FAILED) {
             return;
         }
 
-        if (task.getOperation() == PaymentRetryOperation.VERIFY_PAYMENT) { // 결제 재시도 실패확정 결제상태변경
+        if (task.getOperation() == PaymentRetryOperation.VERIFY_PAYMENT) {
             paymentLifecycleService.markFailed(task.getPaymentId());
             return;
         }
 
-        if (task.getOperation() == PaymentRetryOperation.CANCEL_PAYMENT  // 환불 재시도 실패확정 환불상태변경
+        if (task.getOperation() == PaymentRetryOperation.CANCEL_PAYMENT
                 && task.getCancelFlow() == CancelFlow.REFUND) {
             paymentLifecycleService.markRefundFailed(task.getPaymentId());
             return;
         }
 
-        if (task.getOperation() == PaymentRetryOperation.CANCEL_PAYMENT // 보상트랜젝션 재시도 실패확정 결제상태변경
+        if (task.getOperation() == PaymentRetryOperation.CANCEL_PAYMENT
                 && task.getCancelFlow() == CancelFlow.COMPENSATION) {
             paymentLifecycleService.markFailed(task.getPaymentId());
         }
+    }
+
+    // 환불 재시도는 처음 계산한 취소 금액/포인트 회수량을 태스크에서 다시 복원해 사용한다.
+    private RefundCalculation buildRefundCalculation(PaymentRetryTask task) {
+        if (task.getCancelFlow() != CancelFlow.REFUND) {
+            return null;
+        }
+
+        Long cancelAmount = task.getCancelAmount();
+        Long recoverableEarnedPoints = task.getRecoverableEarnedPoints();
+        Long unrecoverableEarnedPoints = null;
+
+        if (cancelAmount != null && recoverableEarnedPoints != null) {
+            Payment payment = paymentLifecycleService.getPayment(task.getPaymentId());
+            unrecoverableEarnedPoints = payment.getPgAmount() - cancelAmount;
+        }
+
+        return new RefundCalculation(cancelAmount, recoverableEarnedPoints, unrecoverableEarnedPoints);
     }
 }
