@@ -38,7 +38,7 @@ public class PaymentMethod extends BaseEntity {
     @Column(nullable = false, unique = true)
     private String billingKey;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String customerUid;
 
     @Enumerated(EnumType.STRING)
@@ -52,9 +52,6 @@ public class PaymentMethod extends BaseEntity {
     @Column(nullable = false)
     private boolean isDefault;
 
-    private LocalDateTime closedAt;
-
-
     public static PaymentMethod create(Customer customer,  PaymentMethodCreateRequest request) {
         PaymentMethod paymentMethod = new PaymentMethod();
         paymentMethod.customer = customer;
@@ -63,7 +60,10 @@ public class PaymentMethod extends BaseEntity {
         paymentMethod.provider = request.provider();
         paymentMethod.status = PaymentMethodStatus.ACTIVE;
         paymentMethod.isDefault = request.isDefault();
-        paymentMethod.closedAt = LocalDateTime.now().plusMonths(1);
         return paymentMethod;
+    }
+
+    public void unsetDefault() {
+        this.isDefault = false;
     }
 }
