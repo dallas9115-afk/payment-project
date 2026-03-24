@@ -11,7 +11,23 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "point_details")
+@Table(
+        name = "point_details",
+        indexes = {
+                // 1. 유저별 잔액 조회 최적화 (가장 빈번함)
+                // 유저ID -> 만료일순 -> 잔액 존재 여부 순으로 스캔
+                @Index(name = "idx_point_details_customer_expired_remain",
+                        columnList = "customerId, expiredAt, remainAmount"),
+
+                // 2. 주문번호 기반 조회 최적화 (환불/취소 시 사용)
+                @Index(name = "idx_point_details_order_id",
+                        columnList = "orderId"),
+
+                // 3. 만료 배치 작업 최적화
+                @Index(name = "idx_point_details_expired_remain",
+                        columnList = "expiredAt, remainAmount")
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
