@@ -1,5 +1,6 @@
 package com.bootcamp.paymentdemo.domain.refund.service;
 
+import com.bootcamp.paymentdemo.config.DistributedLock;
 import com.bootcamp.paymentdemo.domain.customer.entity.Customer;
 import com.bootcamp.paymentdemo.domain.payment.entity.Payment;
 import com.bootcamp.paymentdemo.domain.payment.service.PaymentAccessValidator;
@@ -29,6 +30,7 @@ public class RefundService {
     private final PointTransactionService pointTransactionService;
 
     @Transactional
+    @DistributedLock(key = "'lock:payment:cancel:' + #paymentId", waitTime = 3, leaseTime = 15)
     public RefundResponse cancel(Authentication authentication, String paymentId, RefundRequest request) {
         Payment payment = paymentAccessValidator.getAuthorizedPayment(authentication, paymentId);
         Customer customer = paymentAccessValidator.getAuthenticatedCustomer(authentication);

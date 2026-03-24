@@ -1,12 +1,20 @@
 package com.bootcamp.paymentdemo.domain.payment.service;
 
+import com.bootcamp.paymentdemo.config.DistributedLock;
 import com.bootcamp.paymentdemo.domain.order.entity.Order;
 import com.bootcamp.paymentdemo.domain.order.repository.OrderRepository;
 import com.bootcamp.paymentdemo.domain.payment.dto.Request.PaymentCreateReadyRequest;
 import com.bootcamp.paymentdemo.domain.payment.dto.Request.PortOneWebhookRequest;
 import com.bootcamp.paymentdemo.domain.payment.dto.Response.*;
 import com.bootcamp.paymentdemo.domain.payment.entity.Payment;
+import com.bootcamp.paymentdemo.domain.payment.entity.PaymentMethod;
+import com.bootcamp.paymentdemo.domain.payment.enums.PaymentMethodStatus;
+import com.bootcamp.paymentdemo.domain.payment.repository.PaymentMethodRepository;
 import com.bootcamp.paymentdemo.domain.payment.repository.PaymentRepository;
+import com.bootcamp.paymentdemo.domain.subscription.entity.Plan;
+import com.bootcamp.paymentdemo.domain.subscription.entity.Subscription;
+import com.bootcamp.paymentdemo.domain.subscription.entity.SubscriptionStatus;
+import com.bootcamp.paymentdemo.domain.subscription.repository.SubscriptionRepository;
 import com.bootcamp.paymentdemo.global.error.PortOneApiException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,9 +37,13 @@ public class PaymentService {
     private final PaymentRetryTaskService paymentRetryTaskService;
     private final PaymentLifecycleService paymentLifecycleService;
     private final PaymentAccessValidator paymentAccessValidator;
+    private final PaymentMethodRepository paymentMethodRepository;
+    private final SubscriptionRepository subscriptionRepository;
 
     // 결제 ID 에 넣을 날짜 포맷
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+
+
 
     /**
      * 결제 시도(Attempt) 생성
@@ -81,6 +93,7 @@ public class PaymentService {
      * 4) 그 외에는 PortOne 결제 단건조회로 실제 상태/금액 검증
      * 5) 성공이면 완료 처리, 실패/미확정이면 상태에 따라 실패 또는 재시도 등록
      */
+    @DistributedLock(key = "'lock:payment:confirm:' + #paymentId", waitTime = 3, leaseTime = 10)
     public PaymentConfirmResponse confirm(Authentication authentication, String paymentId) {
         Payment payment = paymentAccessValidator.getAuthorizedPayment(authentication, paymentId);
 
@@ -247,4 +260,100 @@ public class PaymentService {
         PortOnePaymentInfoResponse info = portOneApiClient.getPaymentInfo(paymentId, idempotencyKey);
         return PaymentDetailResponse.from(info);
     }
+
+    /**
+     * 정기결제 실행
+     * - 스케줄러 또는 구독 도메인이 "지금 결제해야 하는 구독"을 넘겨주면
+     *   결제 도메인은 결제수단 검증과 PortOne 빌링키 결제만 수행합니다.
+     *
+     * @return true면 결제 성공, false면 결제 실패
+     */
+    @Transactional
+    @DistributedLock(key = "'lock:subscription:billing:' + #subscriptionId", waitTime = 3, leaseTime = 15)
+    public boolean billingKeyPayment(Long subscriptionId) {
+        Subscription subscription = validateSubscription(subscriptionId);
+        PaymentMethod paymentMethod = validatePaymentMethod(resolvePaymentMethodId(subscription));
+        int price = resolveSubscriptionAmount(subscription.getPlan());
+
+        String billingKey = paymentMethod.getBillingKey();
+        String paymentId = buildSubscriptionPaymentId(subscription);
+
+        boolean processed = portOneApiClient.payWithBillingKey(billingKey, paymentId, price);
+        if (processed) {
+            log.info("정기결제 성공 - subscriptionId={}, paymentMethodId={}, paymentId={}, amount={}",
+                    subscription.getSubscriptionId(), paymentMethod.getId(), paymentId, price);
+        } else {
+            log.warn("정기결제 실패 - subscriptionId={}, paymentMethodId={}, paymentId={}, amount={}",
+                    subscription.getSubscriptionId(), paymentMethod.getId(), paymentId, price);
+        }
+        return processed;
+    }
+
+    // 인증 사용자에서 직접 수동 결제를 누르는 진입점이 필요하면 이 메서드를 재사용할 수 있다.
+    @Transactional
+    public boolean billingKeyPayment(Authentication authentication, Long subscriptionId) {
+        paymentAccessValidator.validateAuthenticated(authentication);
+        return billingKeyPayment(subscriptionId);
+    }
+
+    // 결제를 실행할 수 있는 구독인지 확인
+    private Subscription validateSubscription(Long subscriptionId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId).orElseThrow(
+                () -> new IllegalArgumentException("없는 구독입니다.")
+        );
+
+        if (subscription.getStatus() != SubscriptionStatus.ACTIVE
+                && subscription.getStatus() != SubscriptionStatus.PAST_DUE) {
+            throw new IllegalArgumentException("정기결제를 실행할 수 없는 구독 상태입니다.");
+        }
+
+        return subscription;
+    }
+
+    // 구독 엔티티에 저장된 문자열 paymentMethodId를 실제 PK(Long)로 변환
+    private Long resolvePaymentMethodId(Subscription subscription) {
+        try {
+            return Long.parseLong(subscription.getPaymentMethodId());
+        } catch (NumberFormatException e) {
+            throw new IllegalStateException(
+                    "구독에 연결된 결제수단 ID 형식이 올바르지 않습니다. subscriptionId="
+                            + subscription.getSubscriptionId()
+                            + ", paymentMethodId=" + subscription.getPaymentMethodId()
+            );
+        }
+    }
+
+    // 정기결제에 사용할 결제수단 검증
+    private PaymentMethod validatePaymentMethod(Long paymentMethodId) {
+        PaymentMethod paymentMethod = paymentMethodRepository.findById(paymentMethodId).orElseThrow(
+                () -> new IllegalArgumentException("없는 결제수단입니다.")
+        );
+
+        if (paymentMethod.getStatus() != PaymentMethodStatus.ACTIVE) {
+            throw new IllegalArgumentException("활성화 되지않은 결제수단입니다.");
+        }
+
+        if (paymentMethod.getBillingKey() == null || paymentMethod.getBillingKey().isBlank()) {
+            throw new IllegalArgumentException("빌링키가 없는 결제수단입니다.");
+        }
+
+        return paymentMethod;
+    }
+
+    // 구독 플랜 금액 검증
+    private int resolveSubscriptionAmount(Plan plan) {
+        if (plan == null) {
+            throw new IllegalArgumentException("플랜 정보가 없습니다.");
+        }
+        if (plan.getPrice() == null || plan.getPrice() <= 0) {
+            throw new IllegalArgumentException("유효하지 않은 구독 금액입니다.");
+        }
+        return plan.getPrice();
+    }
+
+    // 일반 주문 결제와 구분되는 정기결제 전용 paymentId
+    private String buildSubscriptionPaymentId(Subscription subscription) {
+        return "sub-" + subscription.getSubscriptionId() + "-" + generatePaymentId();
+    }
+
 }
