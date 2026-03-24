@@ -1,11 +1,8 @@
-package com.bootcamp.paymentdemo.domain.customer.dto.response;
-
-import lombok.Builder;
+package com.bootcamp.paymentdemo.domain.auth.dto;
 
 import java.util.Date;
 
-@Builder
-public record CustomerSignupResponse(
+public record RegisterResponseDto(
         Long id,
         String name,
         String email,

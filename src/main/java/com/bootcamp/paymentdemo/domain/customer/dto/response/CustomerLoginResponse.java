@@ -8,14 +8,14 @@ public record CustomerLoginResponse(
         Long id,
         String name,
         String email,
-        String token
+        String phoneNumber
 ) {
-    public static CustomerLoginResponse from(Customer customer, String token) {
+    public static CustomerLoginResponse from(Customer customer) {
         return CustomerLoginResponse.builder()
                 .id(customer.getId())
                 .name(customer.getName())
                 .email(customer.getEmail())
-                .token(token)
+                .phoneNumber(customer.getPhoneNumber())
                 .build();
     }
 }

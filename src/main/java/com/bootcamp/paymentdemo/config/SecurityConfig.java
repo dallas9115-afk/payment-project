@@ -21,6 +21,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 // ✅ Spring Boot 4.0 새 패키지 경로
 import org.springframework.boot.security.autoconfigure.web.servlet.PathRequest;
 
+import static org.springframework.boot.security.autoconfigure.web.servlet.PathRequest.toStaticResources;
+
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -35,6 +37,8 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(toStaticResources().atCommonLocations()).permitAll() // 정적 리소스
                         .requestMatchers(HttpMethod.GET, "/", "/pages/**").permitAll() // 템플릿 페이지
@@ -46,7 +50,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/public/**").permitAll() // 공개 API
                         .requestMatchers("/actuator/**").permitAll() // 헬스체크
                         .requestMatchers("/api/**").authenticated() // 나머지 API 인증 필요
-                        .requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
+                        .requestMatchers(toStaticResources().atCommonLocations()).permitAll()
                         .requestMatchers(HttpMethod.GET, "/", "/pages/**").permitAll()
                         .requestMatchers("/api/auth/v1/register", "/api/auth/v1/login").permitAll()
                         .requestMatchers("/api/public/**", "/actuator/**").permitAll()

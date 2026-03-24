@@ -1,4 +1,4 @@
-package com.bootcamp.paymentdemo.domain.auth.dto.request;
+package com.bootcamp.paymentdemo.domain.auth.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

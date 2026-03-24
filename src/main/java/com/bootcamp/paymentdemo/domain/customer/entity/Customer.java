@@ -1,8 +1,5 @@
 package com.bootcamp.paymentdemo.domain.customer.entity;
 
-import com.bootcamp.paymentdemo.domain.point.entity.PointDetail;
-import com.bootcamp.paymentdemo.domain.point.entity.PointHistory;
-import com.bootcamp.paymentdemo.domain.point.entity.PointType;
 import com.bootcamp.paymentdemo.domain.customer.enums.Rank;
 import com.bootcamp.paymentdemo.domain.point.entity.PointDetail;
 import com.bootcamp.paymentdemo.domain.point.entity.PointHistory;
@@ -13,13 +10,19 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.*;
+import org.hibernate.annotations.ColumnDefault;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.util.Date;
 
 @Getter
+@Builder
 @Entity
 @Table(name = "customers")
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Builder
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
+@EntityListeners(AuditingEntityListener.class)
 public class Customer {
 
     // 고객 ID
@@ -56,6 +59,7 @@ public class Customer {
 
     // 고객 등급
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     @Column(name = "member_rank")
     private Rank rank = Rank.NORMAL; // 디폴트 값(NORMAL)
 
@@ -64,16 +68,11 @@ public class Customer {
 
     // [이식] 포인트 잔액 스냅샷 (int에서 Long으로 변경 권장 - 정합성 통일)
     @Column(nullable = false)
+    @Builder.Default
     private Long currentPoint = 0L;
 
-    public Customer(String name, String email, String password, String phoneNumber, Rank rank, Long currentPoint) {
-        this.name = name;
-        this.email = email;
-        this.password = password;
-        this.phoneNumber = phoneNumber;
-        this.rank = (rank != null) ? rank : Rank.NORMAL;
-        this.currentPoint = (currentPoint != null) ? currentPoint : 0L;
-    }
+    @CreatedDate
+    private Date createdAt;
 
     // --- [로직 이식 시작] --- by 임호진
 
