@@ -98,6 +98,7 @@ public class Subscription extends BaseEntity {
         this.trialEnd = null;
     }
 
+    // 바로 결제
     public void markPastDue() {
         this.status = SubscriptionStatus.PAST_DUE;
     }

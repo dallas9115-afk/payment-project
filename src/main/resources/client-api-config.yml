@@ -131,7 +131,7 @@ api:
           type: array
           items:
             - name: id
-              type: string
+              type: number
               required: true
               description: 상품 ID
             - name: name
