@@ -105,7 +105,7 @@ public class OrderService {
     public OrderDetailResponse getOrderDetail(String orderId,Long productId) {
         // 1. 주문 조회
         OrderItem orderItem = orderItemRepository.findByOrderOrderIdAndProductId(orderId,productId)
-                .orElseThrow(() -> new IllegalArgumentException("주문 없다."));
+                .orElseThrow(() -> new IllegalArgumentException("주문이 없습니다."));
 
         return new OrderDetailResponse(
                 orderItem.getOrder().getOrderNumber(),
@@ -122,7 +122,7 @@ public class OrderService {
     @Transactional(readOnly = true)
     public List<OrderListResponse> getOrderList(Long customerId) {
         Customer customer = customerRepository.findById(customerId)
-                .orElseThrow(() -> new IllegalArgumentException("고객 없음"));
+                .orElseThrow(() -> new IllegalArgumentException("고객이 없습니다."));
 
 
         List<Order> orders = orderRepository.findByCustomer(customer);
@@ -178,7 +178,7 @@ public class OrderService {
                    //          두 번째 호출: 이미 성공한 상태 확인 → 그냥 종료
         }
 
-        throw new IllegalStateException("주문 완료 처리가 불가능한 상태입니다. currentStatus=" + order.getStatus());
+        throw new IllegalStateException("주문 완료 처리가 불가능한 상태입니다. 현재상태는=" + order.getStatus());
     }
 
 
@@ -219,7 +219,7 @@ public class OrderService {
         }
 
         // 3) 그 외 상태는 정책상 취소 불가로 보고 예외 전파
-        throw new IllegalStateException("주문 취소가 불가능한 상태입니다. currentStatus=" + order.getStatus());
+        throw new IllegalStateException("주문 취소가 불가능한 상태입니다. 현재상태는=" + order.getStatus());
     }
 
 }
