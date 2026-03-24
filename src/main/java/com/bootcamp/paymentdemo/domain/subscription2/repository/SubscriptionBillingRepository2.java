@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface SubscriptionBillingRepository2 extends JpaRepository<SubscriptionBilling2, Long> {
+
     boolean existsBySubscriptionAndStatusInAndCreatedAtAfter(
             Subscription2 subscription,
             List<BillingStatus2> statuses,

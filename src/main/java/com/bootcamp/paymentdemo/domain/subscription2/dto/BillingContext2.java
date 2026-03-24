@@ -5,5 +5,5 @@ public record BillingContext2(
         Long subscriptionId,
         String billingKey,
         Long amount,
-        String customerId
+        Long customerId
 ) {}

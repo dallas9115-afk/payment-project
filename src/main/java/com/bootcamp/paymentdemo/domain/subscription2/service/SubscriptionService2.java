@@ -21,7 +21,6 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
 @Slf4j
 public class SubscriptionService2 {
 
@@ -124,15 +123,14 @@ public class SubscriptionService2 {
            // 4. 구독 청구(Billing) 로그 생성 (READY 상태)
            // 💡 피드백 반영: 중복 결제 방지를 위해 여기서 멱등성 체크를 먼저 해도 좋습니다.
            // 4. Billing 저장
-           SubscriptionBilling2 billing = billingRepository.save(SubscriptionBilling2.builder()
-                   .subscription(subscription)
-                   .amount(plan.getPrice())
-                   .scheduledDate(today)
-                   .status(BillingStatus2.READY)
-                   .build());
+           SubscriptionBilling2 savedBilling = billingRepository.save(
+                   SubscriptionBilling2.builder()
+                           .subscription(subscription)
+                           .amount(plan.getPrice())
+                           .scheduledDate(today)
+                           .status(BillingStatus2.READY)
+                           .build());
 
-           // DB에 저장하고 영속화된 객체를 받습니다.
-           SubscriptionBilling2 savedBilling = billingRepository.save(billing);
 
            // [개선] DB 조회 없이 방금 만든 객체들에서 바로 꺼내서 반환!
            return new BillingContext2(
@@ -140,7 +138,7 @@ public class SubscriptionService2 {
                    subscription.getId(),
                    method.getBillingKey(),
                    plan.getPrice(),
-                   customerId.toString()
+                   customerId
            );
        } catch (DataIntegrityViolationException e) {
            // [2차 방어] DB 유니크 인덱스에 걸렸을 때 (레이스 컨디션 발생 시)
@@ -151,14 +149,19 @@ public class SubscriptionService2 {
 
     @Transactional // 3번 단계를 위한 짧은 트랜잭션
     public void updatePaymentResult(Long subId, Long billingId, boolean isSuccess, String paymentId) {
-        Subscription2 sub = subscriptionRepository.findById(subId).orElseThrow();
-        SubscriptionBilling2 billing = billingRepository.findById(billingId).orElseThrow();
+        Subscription2 sub = subscriptionRepository.findById(subId)
+                .orElseThrow(()-> new IllegalArgumentException("구독 정보를 찾을 수 없습니다."));
+        SubscriptionBilling2 billing = billingRepository.findById(billingId)
+                .orElseThrow(()-> new IllegalArgumentException("결제 로그를 찾을 수 없습니다."));
 
         if (isSuccess) {
             billing.markRequested(paymentId); // 상태를 REQUESTED로 변경 (웹훅 대기)
         } else {
+            billing.updateStatus(BillingStatus2.FAILED);
+            billing.setPaymentId(paymentId);
             sub.toPastDue();         // 미납 처리
-            billing.updateStatus(BillingStatus2.FAILED); // 실패 기록
+
+            log.warn("결제 요청 실패: billingId={}, paymentId={}", billingId, paymentId);
         }
     }
 
@@ -170,16 +173,24 @@ public class SubscriptionService2 {
         SubscriptionBilling2 billing = billingRepository.findByPaymentId(paymentId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 결제 건입니다."));
 
-        // 2. 중복 처리 방지
+        // 2. [피드백 반영] 결제 ID 무결성 검증 (보안 강화)
+        // DB에 저장된 ID와 실제 웹훅으로 들어온 ID가 같은지 한 번 더 확인합니다.
+        if (!billing.getPaymentId().equals(paymentId)) {
+            log.error("결제 ID 불일치 보안 위협 감지! DB: {}, Webhook: {}",
+                    billing.getPaymentId(), paymentId);
+            throw new IllegalStateException("잘못된 결제 식별자 요청입니다.");
+        }
+
+        // 3. 중복 처리 방지
         if (billing.isCompleted()) {
             log.info("이미 처리가 완료된 결제 건입니다. paymentId={}", paymentId);
             return;
         }
 
-        // 3. 결제 로그 업데이트 (입력받은 paymentId를 그대로 전달)
+        // 4. 결제 로그 업데이트 (입력받은 paymentId를 그대로 전달)
         billing.complete(paymentId);
 
-        // 4. 구독 본체 활성화
+        // 5. 구독 본체 활성화
         Subscription2 subscription = billing.getSubscription();
         subscription.activate();
 
@@ -205,6 +216,12 @@ public class SubscriptionService2 {
 
     public void executeRecurringBilling(Subscription2 sub) {
 
+        if (sub.isCanceled() || sub.isPastDue()) {
+            log.info("결제 대상이 아닌 구독입니다. Skip 처리: SubID={}, Status={}",
+                    sub.getId(), sub.getStatus());
+            return;
+        }
+
         // 1. 장부 생성 (트랜잭션 1 시작 및 종료)
         BillingContext2 context = prepareRecurringBilling(sub);
         if (context == null) return;
@@ -223,24 +240,6 @@ public class SubscriptionService2 {
         // 3. 결과 업데이트 (트랜잭션 2 시작 및 종료)
         // 아까 만든 updatePaymentResult 메서드를 재사용하면 됩니다!
         updatePaymentResult(context.subscriptionId(), context.billingId(), isSuccess, paymentId);
-    }
-
-
-    @Transactional
-    public void cancelSubscription(Long customerId, Long subscriptionId) {
-        // 1. 해당 사용자의 활성화된 구독 찾기
-        Subscription2 subscription = subscriptionRepository.findById(subscriptionId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 구독입니다."));
-
-        // 2. 권한 체크 (내 구독이 맞는지)
-        if (!subscription.getCustomerId().equals(customerId)) {
-            throw new IllegalStateException("해지 권한이 없습니다.");
-        }
-
-        // 3. 해지 처리
-        subscription.cancel();
-
-        log.info("구독 해지 완료: CustomerID={}, SubID={}", customerId, subscriptionId);
     }
 
 
@@ -267,41 +266,41 @@ public class SubscriptionService2 {
                 sub.getId(),
                 sub.getPaymentMethod().getBillingKey(),
                 sub.getPlan().getPrice(),
-                sub.getCustomerId().toString()
+                sub.getCustomerId()
         );
     }
 
-//    // 구독 취소시 사용할 로직 -> 위에 메서드랑 변경할거야요
-//@Transactional
-//public void cancelSubscription(Long customerId, Long subscriptionId) {
-//    Subscription subscription = subscriptionRepository.findById(subscriptionId)
-//            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 구독입니다."));
-//
-//    if (!subscription.getCustomerId().equals(customerId)) {
-//        throw new IllegalStateException("해지 권한이 없습니다.");
-//    }
-//
-//    try {
-//        // [외부 API 호출] 포트원 빌링키 삭제
-//        String billingKey = subscription.getPaymentMethod().getBillingKey();
-//        portOneApiClient.unsubscribeBillingKey(billingKey);
-//
-//        // 성공 시 정상 해지 처리
-//        subscription.cancel();
-//        log.info("구독 해지 완료: SubID={}", subscriptionId);
-//
-//    } catch (Exception e) {
-//        // [피드백 반영] 외부 API 실패 시 상태를 CANCEL_FAILED로 변경
-//        // 이렇게 해두면 나중에 관리자 페이지에서 '해지 실패건'만 모아서 재시도할 수 있습니다.
-//        subscription.updateStatus(SubscriptionStatus.CANCEL_FAILED);
-//
-//        log.error("포트원 빌링키 해지 중 오류 발생 - 관리자 확인 필요: SubID={}, Error={}",
-//                subscriptionId, e.getMessage());
-//
-//        // 사용자에게는 일단 알림을 주거나, 내부 정책에 따라 예외를 던질 수도 있습니다.
-//        throw new RuntimeException("결제 대행사 해지 통신 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
-//    }
-//}
+    // 구독 취소시 사용할 로직 -> 위에 메서드랑 변경할거야요
+    @Transactional
+    public void cancelSubscription(Long customerId, Long subscriptionId) {
+        Subscription2 subscription = subscriptionRepository.findById(subscriptionId)
+               .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 구독입니다."));
+
+     if (!subscription.getCustomerId().equals(customerId)) {
+            throw new IllegalStateException("해지 권한이 없습니다.");
+     }
+
+     try {
+         // [외부 API 호출] 포트원 빌링키 삭제
+          String billingKey = subscription.getPaymentMethod().getBillingKey();
+          portOneApiClient.unsubscribeBillingKey(billingKey);
+
+          // 성공 시 정상 해지 처리
+          subscription.cancel();
+          log.info("구독 해지 완료: SubID={}", subscriptionId);
+
+      } catch (Exception e) {
+        // [피드백 반영] 외부 API 실패 시 상태를 CANCEL_FAILED로 변경
+        // 이렇게 해두면 나중에 관리자 페이지에서 '해지 실패건'만 모아서 재시도할 수 있습니다.
+        subscription.updateStatus(SubscriptionStatus2.CANCEL_FAILED);
+
+        log.error("포트원 빌링키 해지 중 오류 발생 - 관리자 확인 필요: SubID={}, Error={}",
+                subscriptionId, e.getMessage());
+
+        // 사용자에게는 일단 알림을 주거나, 내부 정책에 따라 예외를 던질 수도 있습니다.
+        throw new RuntimeException("결제 대행사 해지 통신 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+    }
+}
 
 
 //    /**

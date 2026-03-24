@@ -91,4 +91,12 @@ public class Subscription2 extends BaseEntity {
             this.nextBillingDate = this.nextBillingDate.plusMonths(1);
         }
     }
+
+    public boolean isCanceled() {
+        return this.status == SubscriptionStatus2.CANCELED;
+    }
+
+    public boolean isPastDue() {
+        return this.status == SubscriptionStatus2.PAST_DUE;
+    }
 }

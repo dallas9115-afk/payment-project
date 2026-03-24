@@ -71,4 +71,8 @@ public class SubscriptionBilling2 {
         return this.status == BillingStatus2.SUCCESS ||
                 this.status == BillingStatus2.FAILED;
     }
+
+    public void setPaymentId(String paymentId) {
+        this.paymentId = paymentId;
+    }
 }

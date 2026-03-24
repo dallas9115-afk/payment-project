@@ -8,6 +8,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "subscription_plan2")
 @Getter
@@ -22,9 +24,20 @@ public class SubscriptionPlan2 extends BaseEntity {
     private Long price;
 
     @Enumerated(EnumType.STRING)
-    private BillingInterval billingInterval;
+    private PlanStatus2 status; // ACTIVE인지 INACTIVE인지
+
+    @Enumerated(EnumType.STRING)
+    private BillingInterval2 billingInterval;
 
     private int trialPeriodDays;
+
+    // 다음 결제일을 계산하는 로직 예시
+    public LocalDateTime calculateNextBillingDate(LocalDateTime current) {
+        if (this.billingInterval == BillingInterval2.MONTHLY) {
+            return current.plusMonths(1);
+        }
+        return current.plusYears(1);
+    }
 
 
 }
