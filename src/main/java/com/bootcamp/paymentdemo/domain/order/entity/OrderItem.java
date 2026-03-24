@@ -10,7 +10,19 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
-@Table(name="order_items")
+@Table(
+        name = "order_items",
+        indexes = {
+                @Index(
+                        name = "idx_order_items_order",
+                        columnList = "order_id"
+                ),
+                @Index(
+                        name = "idx_order_items_order_product",
+                        columnList = "order_id, product_id"
+                )
+        }
+)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class OrderItem extends BaseEntity {
 

@@ -8,7 +8,12 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
-@Table(name="products")
+@Table(
+        name = "products",
+        indexes = {
+                @Index(name = "idx_products_category_status", columnList = "category, status")
+        }
+)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Product {
     @Id
@@ -36,9 +41,6 @@ public class Product {
 
 // 결제 성공 -> 재고 차감.
     public void decreaseStock(int quantity) {
-        if (this.stock < quantity) {
-            throw new IllegalStateException("재고가 부족합니다.");
-        }
         this.stock -= quantity;
     }
 
