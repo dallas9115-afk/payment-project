@@ -7,6 +7,8 @@ import com.bootcamp.paymentdemo.domain.payment.entity.Payment;
 import com.bootcamp.paymentdemo.domain.payment.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -64,16 +66,31 @@ public class PaymentAccessValidator {
         );
     }
 
-    // 이메일 가져오기
+    // 이메일 가져오기(O어스2 가능)
     private String extractAuthenticatedEmail(Authentication authentication) {
         Object principal = authentication.getPrincipal();
 
-        if (principal instanceof String email && !email.isBlank()) {
+        if (principal instanceof OAuth2User oAuth2User) {
+            Object email = oAuth2User.getAttributes().get("email");
+            if (email instanceof String emailValue && !emailValue.isBlank()) {
+                return emailValue;
+            }
+        }
+
+        if (principal instanceof UserDetails userDetails) {
+            String username = userDetails.getUsername();
+            if (username != null && !username.isBlank()) {
+                return username;
+            }
+        }
+
+        if (principal instanceof String email && !email.isBlank() && !"anonymousUser".equals(email)) {
             return email;
         }
 
         String authenticationName = authentication.getName();
-        if (authenticationName != null && !authenticationName.isBlank()) {
+        if (authenticationName != null && !authenticationName.isBlank()
+                && !"anonymousUser".equals(authenticationName)) {
             return authenticationName;
         }
 

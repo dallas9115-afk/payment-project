@@ -54,6 +54,12 @@ public class PaymentRetryTask extends BaseEntity {
     @Column(name = "cancel_flow")
     private CancelFlow cancelFlow; // 보상취소인지 일반환불인지
 
+    @Column(name = "cancel_amount")
+    private Long cancelAmount; // 환불 시 포트원에 보낼 실제 취소 금액
+
+    @Column(name = "recoverable_earned_points")
+    private Long recoverableEarnedPoints; // 환불 성공 후 실제 회수할 적립 포인트
+
     @Column(name = "attempt_count", nullable = false)
     private int attemptCount;  // 몇번재시도했는지
 
@@ -92,6 +98,17 @@ public class PaymentRetryTask extends BaseEntity {
             String cancelReason,
             CancelFlow cancelFlow
     ) {
+        return cancelTask(paymentId, idempotencyKey, cancelReason, cancelFlow, null, null);
+    }
+
+    public static PaymentRetryTask cancelTask(
+            String paymentId,
+            String idempotencyKey,
+            String cancelReason,
+            CancelFlow cancelFlow,
+            Long cancelAmount,
+            Long recoverableEarnedPoints
+    ) {
         PaymentRetryTask task = new PaymentRetryTask();
         task.paymentId = paymentId;
         task.operation = PaymentRetryOperation.CANCEL_PAYMENT;
@@ -99,6 +116,8 @@ public class PaymentRetryTask extends BaseEntity {
         task.idempotencyKey = idempotencyKey;
         task.cancelReason = cancelReason;
         task.cancelFlow = cancelFlow;
+        task.cancelAmount = cancelAmount;
+        task.recoverableEarnedPoints = recoverableEarnedPoints;
         task.attemptCount = 0;
         task.maxAttempts = 20;
         task.nextAttemptAt = LocalDateTime.now();

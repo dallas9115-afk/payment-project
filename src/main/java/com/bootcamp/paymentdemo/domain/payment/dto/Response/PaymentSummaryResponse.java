@@ -5,7 +5,7 @@ import com.bootcamp.paymentdemo.domain.payment.enums.PaymentStatus;
 
 import java.time.LocalDateTime;
 
-// 주문조회에서 결제상태를 호출하는 기능이 프론트엔드에없기때문에 사용하진않음
+// 주문 조회 화면에서 결제 기준 요약 정보를 붙일 때 사용하는 DTO
 public record PaymentSummaryResponse(
         String paymentId,
         PaymentStatus status,
