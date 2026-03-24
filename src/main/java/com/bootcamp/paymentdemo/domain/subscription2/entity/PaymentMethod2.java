@@ -6,14 +6,14 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "payment_methods", indexes = {
+@Table(name = "payment_methods2", indexes = {
         @Index(name = "idx_payment_method_customer", columnList = "customerId, isDefault")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor
-public class PaymentMethod extends BaseEntity {
+public class PaymentMethod2 extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

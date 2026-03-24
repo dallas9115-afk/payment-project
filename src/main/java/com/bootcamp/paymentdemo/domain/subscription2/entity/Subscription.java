@@ -28,7 +28,7 @@ public class Subscription extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "payment_method_id")
-    private PaymentMethod paymentMethod;
+    private PaymentMethod2 paymentMethod;
 
     @Enumerated(EnumType.STRING)
     private SubscriptionStatus status; // PENDING(빌링키 발급 이후 1차저장), ACTIVE(결제 완료 후 2차저장), PAST_DUE(미납), CANCELED(해지)
@@ -71,5 +71,24 @@ public class Subscription extends BaseEntity {
     public void toPastDue() {
         this.status = SubscriptionStatus.PAST_DUE;
         // 여기서 알림 발송 이벤트를 던지거나 로그를 남깁니다.
+    }
+
+    /**
+     * 다음 결제 예정일을 강제로 설정하거나 갱신할 때 사용합니다.
+     */
+    public void setNextBillingDate(LocalDateTime nextBillingDate) {
+        this.nextBillingDate = nextBillingDate;
+    }
+
+    /**
+     * [추가 권장] 현재 날짜 기준으로 한 달을 더해 결제일을 갱신하는 비즈니스 로직
+     * (confirmSubscription 이나 스케줄러 성공 시 사용하면 편리합니다)
+     */
+    public void renewNextBillingDate() {
+        if (this.nextBillingDate == null) {
+            this.nextBillingDate = LocalDateTime.now().plusMonths(1);
+        } else {
+            this.nextBillingDate = this.nextBillingDate.plusMonths(1);
+        }
     }
 }
