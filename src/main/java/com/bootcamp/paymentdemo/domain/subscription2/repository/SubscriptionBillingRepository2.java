@@ -20,8 +20,6 @@ public interface SubscriptionBillingRepository2 extends JpaRepository<Subscripti
 
     boolean existsBySubscriptionAndScheduledDate(Subscription2 subscription, LocalDateTime scheduledDate);
 
-    boolean existsByCustomerIdAndPlanIdAndScheduledDate(Long customerId, Long planId, LocalDateTime today);
-
     @Query("SELECT COUNT(b) > 0 FROM SubscriptionBilling2 b " +
             "WHERE b.subscription.customerId = :customerId " +
             "AND b.subscription.plan.id = :planId " +
