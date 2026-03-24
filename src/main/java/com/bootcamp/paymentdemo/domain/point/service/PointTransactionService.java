@@ -153,7 +153,7 @@ public class PointTransactionService {
         pointDetailRepository.save(detail);
 
         // 6. [이력 기록] PointHistory 저장
-        saveHistory(customer, detail, PointType.EARNED, earnedAmount, beforePoint, customer.getCurrentPoint(), String.valueOf(orderId), "상품 구매 적립");
+        saveHistory(customer, detail, PointType.EARNED, earnedAmount, beforePoint, customer.getCurrentPoint(),orderId, "상품 구매 적립");
     }
 
     // 포인트 환불
@@ -261,7 +261,8 @@ public class PointTransactionService {
         long toCancel = getEarnedPointsToCancel(orderId);
 
         // 회수 불가 금액 계산: 회수해야 할 적립금에서 현재 잔액을 뺀 값 (0 이하일 수 없음)
-        long unrecoverable = Math.max(0, toCancel - customer.getCurrentPoint());
+        long availableAfterRefund = customer.getCurrentPoint() + restorable;
+        long unrecoverable = Math.max(0, toCancel - availableAfterRefund);
 
         return PointRefundPreview.builder()
                 .currentPointBalance(customer.getCurrentPoint())

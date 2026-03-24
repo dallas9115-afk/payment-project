@@ -26,7 +26,7 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
     private final PortOneApiClient portOneApiClient;
-    private final PaymentRetryService paymentRetryService;
+    private final PaymentRetryTaskService paymentRetryTaskService;
     private final PaymentLifecycleService paymentLifecycleService;
     private final PaymentAccessValidator paymentAccessValidator;
 
@@ -40,7 +40,7 @@ public class PaymentService {
      */
     @Transactional
     public PaymentCreateReadyResponse create(Authentication authentication, PaymentCreateReadyRequest request) {
-        paymentAccessValidator.validateAuthenticated(authentication); // 사용자확인
+        paymentAccessValidator.validateAuthenticated(authentication);
 
         if (request.totalAmount() == null || request.totalAmount() <= 0) {
             throw new IllegalArgumentException("결제 금액은 0보다 커야 합니다.");
@@ -63,10 +63,10 @@ public class PaymentService {
             throw new IllegalArgumentException("사용 포인트가 주문 금액보다 클 수 없습니다.");
         }
 
-        paymentAccessValidator.validateOrderOwnership(authentication, order); // 주문한유저가 맞는지확인
+        paymentAccessValidator.validateOrderOwnership(authentication, order);
 
-        String paymentId = generatePaymentId();  // 결제고유ID 발급
-        Payment payment = Payment.of(order, expectedAmount, paymentId,point); // 페이먼트객체생성
+        String paymentId = generatePaymentId();
+        Payment payment = Payment.of(order, expectedAmount, paymentId,point);
         paymentRepository.save(payment);
 
         return PaymentCreateReadyResponse.checkoutReady(payment);
@@ -75,11 +75,11 @@ public class PaymentService {
     /**
      * 결제 확정
      * 흐름:
-     * 1) paymentId로 결제 시도 건을 비관적 락으로 조회 (동시성/중복 방지)
+     * 1) paymentId 소유권 검증 및 결제건 조회
      * 2) 이미 처리된 건이면 멱등 응답으로 즉시 반환
-     * 3) PortOne 결제 단건조회로 실제 상태/금액 검증
-     * 4) 성공이면 PAID, 실패면 FAILED 처리
-     * 5) 결과를 컨트롤러 응답 DTO로 반환
+     * 3) pgAmount == 0 이면 PortOne 없이 내부 완료 처리
+     * 4) 그 외에는 PortOne 결제 단건조회로 실제 상태/금액 검증
+     * 5) 성공이면 완료 처리, 실패/미확정이면 상태에 따라 실패 또는 재시도 등록
      */
     public PaymentConfirmResponse confirm(Authentication authentication, String paymentId) {
         Payment payment = paymentAccessValidator.getAuthorizedPayment(authentication, paymentId);
@@ -91,7 +91,7 @@ public class PaymentService {
             return PaymentConfirmResponse.alreadyProcessed(payment);
         }
 
-        // 주문금액전부 포인트인경우
+        // 주문 금액 전부를 포인트로 결제한 경우
         if (payment.getPgAmount() == 0L) {
             try {
                 paymentLifecycleService.completePointOnlyPayment(paymentId);
@@ -105,29 +105,29 @@ public class PaymentService {
         }
 
 
-        PortOnePaymentInfoResponse portOnePayment; // 포트원조회에서 받을 바디
-        String verifyIdempotencyKey = portOneApiClient.buildVerifyIdempotencyKey(paymentId); //멱등키 발급
+        PortOnePaymentInfoResponse portOnePayment;
+        String verifyIdempotencyKey = portOneApiClient.buildVerifyIdempotencyKey(paymentId);
         try {
-            portOnePayment = portOneApiClient.getPaymentInfo(paymentId, verifyIdempotencyKey); // 결제조회로직
-        } catch (PortOneApiException apiException) { // 결제조회 실패
+            portOnePayment = portOneApiClient.getPaymentInfo(paymentId, verifyIdempotencyKey);
+        } catch (PortOneApiException apiException) {
             if (apiException.isRetryable()) {
-                paymentRetryService.enqueueVerifyRetry(paymentId, verifyIdempotencyKey);
+                paymentRetryTaskService.enqueueVerifyRetry(paymentId, verifyIdempotencyKey);
                 return PaymentConfirmResponse.failed(
                         payment,
                         "포트원 조회 일시 장애로 결제 확인 재시도를 등록했습니다. reason=" + apiException.getMessage()
                 );
             }
-            paymentLifecycleService.markFailed(paymentId); //  결제조회실패 재시도필요없는이유
+            paymentLifecycleService.markFailed(paymentId);
             return PaymentConfirmResponse.failed(
                     paymentLifecycleService.getPayment(paymentId),
                     "포트원 조회 실패(비재시도): " + apiException.getMessage()
-            );
+                );
         }
         if (portOnePayment.isPaidStatus()) {
             try {
-                paymentLifecycleService.completeApprovedPayment(paymentId, portOnePayment); // 결제완료로직
+                paymentLifecycleService.completeApprovedPayment(paymentId, portOnePayment);
             } catch (Exception processingException) {
-                String compensationMessage = paymentLifecycleService.compensateApprovedPayment( // 취소진행
+                String compensationMessage = paymentLifecycleService.compensateApprovedPayment(
                         paymentId,
                         "결제 확정 후 내부 처리 실패로 취소"
                 );
@@ -141,7 +141,7 @@ public class PaymentService {
             }
 
             return PaymentConfirmResponse.success(paymentLifecycleService.getPayment(paymentId));
-        } else if (portOnePayment.isTerminalFailureStatus()) { // 결제 실패
+        } else if (portOnePayment.isTerminalFailureStatus()) {
             paymentLifecycleService.markFailed(paymentId);
             return PaymentConfirmResponse.failed(
                     paymentLifecycleService.getPayment(paymentId),
@@ -149,7 +149,8 @@ public class PaymentService {
                             + ", reason=" + portOnePayment.resolveFailureReason()
             );
         } else {
-            paymentRetryService.enqueueVerifyRetry(paymentId, verifyIdempotencyKey);  // 상태 레디등 포트원 조회오류 재시도 큐등록
+            // READY/PENDING 같은 미확정 상태는 즉시 실패시키지 않고 verify 재시도 큐에 넣는다.
+            paymentRetryTaskService.enqueueVerifyRetry(paymentId, verifyIdempotencyKey);
             return PaymentConfirmResponse.failed(
                     payment,
                     "포트원 결제 상태 확인 중입니다. status=" + portOnePayment.getStatus()
@@ -187,7 +188,7 @@ public class PaymentService {
             portOnePayment = portOneApiClient.getPaymentInfo(paymentId, verifyIdempotencyKey);
         } catch (PortOneApiException apiException) {
             if (apiException.isRetryable()) {
-                paymentRetryService.enqueueVerifyRetry(paymentId, verifyIdempotencyKey);
+                paymentRetryTaskService.enqueueVerifyRetry(paymentId, verifyIdempotencyKey);
                 throw new IllegalArgumentException(
                         "웹훅 처리 중 포트원 조회 일시 장애(재시도 등록): " + apiException.getMessage()
                 );
@@ -226,7 +227,7 @@ public class PaymentService {
         return "pay-" + timestamp + "-" + random;
     }
 
-    // 주문조회시 보여줄 결제조회 단 프론트엔드 미구현으로 안씀
+    // 주문 조회 화면에서 결제 기준 요약 정보를 붙일 때 사용하는 메서드
     public PaymentSummaryResponse getPaymentSummary(Authentication authentication, String paymentId) {
         Payment payment = paymentAccessValidator.getAuthorizedPayment(authentication, paymentId);
         return PaymentSummaryResponse.from(payment);
@@ -235,8 +236,8 @@ public class PaymentService {
     /**
      * 결제 상세 조회 (PortOne 기준)
      * - paymentId를 받아 PortOne 단건조회 결과를 우리 DTO로 변환해 반환합니다.
-     * - 주문/환불/관리 화면은 이 메서드만 호출해서 재사용하면 됩니다.
-     *  단 프론트엔드 미구현은로 안씀
+     * - 주문/환불/관리 화면에서 PortOne 단건조회 결과가 필요할 때 재사용합니다.
+     * - 현재 프론트에서는 아직 직접 사용하지 않습니다.
      */
     @Transactional(readOnly = true)
     public PaymentDetailResponse getPaymentDetail(Authentication authentication, String paymentId) {
