@@ -7,6 +7,7 @@ import com.bootcamp.paymentdemo.domain.payment.repository.PaymentMethodRepositor
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -15,8 +16,15 @@ public class PaymentMethodService {
     private final PaymentMethodRepository paymentMethodRepository;
     private final PaymentAccessValidator paymentAccessValidator;
 
+    @Transactional
     public PaymentMethod savePaymentMethod(Authentication authentication, PaymentMethodCreateRequest request){
         Customer customer = paymentAccessValidator.getAuthenticatedCustomer(authentication);
+
+        if (request.isDefault()) {
+            paymentMethodRepository.findByCustomerIdAndIsDefaultTrue(customer.getId())
+                    .ifPresent(PaymentMethod::unsetDefault);
+        }
+
         return paymentMethodRepository.save(PaymentMethod.create(customer,request));
 
     }
