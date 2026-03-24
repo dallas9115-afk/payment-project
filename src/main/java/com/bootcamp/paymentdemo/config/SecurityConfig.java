@@ -37,6 +37,8 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .formLogin(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(toStaticResources().atCommonLocations()).permitAll() // 정적 리소스
                         .requestMatchers(HttpMethod.GET, "/", "/pages/**").permitAll() // 템플릿 페이지

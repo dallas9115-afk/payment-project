@@ -27,6 +27,5 @@ public record CustomerSignupRequest(
                 message = "전화번호 형식이 잘못되었습니다.(예시: 010-0000-0000)"
         )
         String phoneNumber
-
 ) {
 }
