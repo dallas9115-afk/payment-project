@@ -14,40 +14,30 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 
-// 구독 정보들 테이블.
+// 구독 정보
 @Entity
 @Table(name = "plans")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Plan extends BaseEntity {
 
+    private static final int MONTHLY_BASE_PRICE = 20000;
+    private static final int YEARLY_BASE_PRICE = 200000;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-
-    // 이름
     @Column(nullable = false, unique = true)
     private String planName;
 
-
-    // 가격
     @Column(nullable = false)
     private Integer price;
 
-
-    // 구독 월,년 (예: 'monthly' 또는 'yearly')
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private BillingInterval billingInterval;
-
-    // 체험 기간.
-    @Column(nullable = false)
-    private Integer trialPeriodDays;
-
-
-
-    // 구독 플랜 레벨
+    
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PlanLevel planLevel;
@@ -57,24 +47,18 @@ public class Plan extends BaseEntity {
     public Plan(
             String planName,
             PlanLevel planLevel,
-            Integer price,
             BillingInterval billingInterval,
-            Integer trialPeriodDays,
             String description
     ) {
         this.planName = planName;
         this.planLevel = planLevel;
-        this.price = price;
         this.billingInterval = billingInterval;
-        this.trialPeriodDays = trialPeriodDays == null ? 0 : trialPeriodDays;
         this.description = description;
-
+        this.price = calculatePrice();
     }
 
-    // 체험 기간 확인 로직.
-    public boolean hasTrial() {
-        return trialPeriodDays > 0;
+    public int calculatePrice() {
+        int basePrice = billingInterval == BillingInterval.YEARLY ? YEARLY_BASE_PRICE : MONTHLY_BASE_PRICE;
+        return basePrice + planLevel.getAdditionalAmount();
     }
-
-
 }
