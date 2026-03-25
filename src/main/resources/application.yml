@@ -20,6 +20,11 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
 
+  # data.sql 초기 데이터 자동 실행
+  sql:
+    init:
+      mode: always
+
   # 3. Redis 연결 설정 (deploy.yml과 환경변수 연동)
   data:
     redis:
@@ -70,7 +75,7 @@ spring:
 
 server:
   port: 8080
-  forward-headers-strategy: native  # <-- 이 설정이 있으면 Caddy가 넘겨준 HTTPS 정보를 스프링에서 활용
+  forward-headers-strategy: native
 
 # PortOne Configuration
 portone:
@@ -83,11 +88,12 @@ portone:
     kg-inicis: ${PORTONE_CHANNEL_KG:}
     toss: ${PORTONE_CHANNEL_TOSS:}
 
-# JWT Configuration (deploy.yml의 환경변수명 JWT_SECRET_KEY와 완벽 일치시킴)
+# JWT Configuration
 jwt:
   secret: ${JWT_SECRET_KEY:commercehub-secret-key-for-demo-please-change-this-in-production-environment}
-  access-token-expiration: 86400000  # 24시간 (밀리초 단위, 24 * 60 * 60 * 1000)
-  refresh-token-expiration: 604800000 # 7일 (밀리초 단위)
+  access-token-expiration: 86400000
+  refresh-token-expiration: 604800000
+  refresh-token-cookie-max-age: 604800
 
 # UI Branding Configuration
 app:
