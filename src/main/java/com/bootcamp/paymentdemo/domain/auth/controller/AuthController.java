@@ -2,6 +2,8 @@ package com.bootcamp.paymentdemo.domain.auth.controller;
 
 import com.bootcamp.paymentdemo.domain.auth.dto.*;
 import com.bootcamp.paymentdemo.domain.auth.service.AuthService;
+import com.bootcamp.paymentdemo.domain.customer.entity.Customer;
+import com.bootcamp.paymentdemo.domain.customer.service.CustomerService;
 import com.bootcamp.paymentdemo.global.error.CommonError;
 import com.bootcamp.paymentdemo.global.error.CommonException;
 import jakarta.servlet.http.HttpServletResponse;
@@ -10,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -22,6 +25,7 @@ public class AuthController {
     private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
 
     private final AuthService authService;
+    private final CustomerService customerService;
 
     @Value("${jwt.refresh-token-cookie-max-age}")
     private long refreshTokenCookieMaxAge;
@@ -42,7 +46,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody @Valid LoginRequestDto request,
-                                                  HttpServletResponse response) {
+                                   HttpServletResponse response) {
         LoginResult result = authService.login(request);
 
         jakarta.servlet.http.Cookie refreshCookie = new jakarta.servlet.http.Cookie(REFRESH_TOKEN_COOKIE, result.refreshToken());
@@ -59,7 +63,7 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public ResponseEntity<String> refresh(@CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken) {
-        if(refreshToken == null) {
+        if (refreshToken == null) {
             throw new CommonException(CommonError.EMPTY_TOKEN);
         }
         RefreshResponse refreshResponse = authService.refresh(refreshToken);
@@ -67,18 +71,31 @@ public class AuthController {
         return ResponseEntity.ok(refreshResponse.accessToken());
     }
 
-    @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@CookieValue(name = REFRESH_TOKEN_COOKIE, required = false) String refreshToken, HttpServletResponse response) {
-        if(refreshToken != null) {
-            authService.logout(refreshToken);
-        }
-        jakarta.servlet.http.Cookie deleteCookie = new jakarta.servlet.http.Cookie(REFRESH_TOKEN_COOKIE, "");
-        deleteCookie.setHttpOnly(true);
-        deleteCookie.setSecure(true);
-        deleteCookie.setPath("/");
-        deleteCookie.setMaxAge(0);
-        response.addCookie(deleteCookie);
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser(
+            @AuthenticationPrincipal Long customerId) {
 
-        return ResponseEntity.ok().build();
+        Customer customer = customerService.findById(customerId);
+
+        return ResponseEntity.ok(Map.of(
+                "customerUid", "CUST-" + customer.getId(),
+                "email", customer.getEmail(),
+                "name", customer.getName()
+        ));
     }
+
+@PostMapping("/logout")
+public ResponseEntity<Void> logout(@CookieValue(name = AuthController.REFRESH_TOKEN_COOKIE, required = false) String refreshToken, HttpServletResponse response) {
+    if (refreshToken != null) {
+        authService.logout(refreshToken);
+    }
+    jakarta.servlet.http.Cookie deleteCookie = new jakarta.servlet.http.Cookie(REFRESH_TOKEN_COOKIE, "");
+    deleteCookie.setHttpOnly(true);
+    deleteCookie.setSecure(true);
+    deleteCookie.setPath("/");
+    deleteCookie.setMaxAge(0);
+    response.addCookie(deleteCookie);
+
+    return ResponseEntity.ok().build();
+}
 }

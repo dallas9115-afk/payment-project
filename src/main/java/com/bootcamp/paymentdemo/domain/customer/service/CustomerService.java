@@ -10,4 +10,6 @@ public interface CustomerService {
     CustomerSignupResponse findByEmail(String email);
 
     Customer findCustomerByEmail(String email);
+
+    Customer findById(Long customerId);
 }
