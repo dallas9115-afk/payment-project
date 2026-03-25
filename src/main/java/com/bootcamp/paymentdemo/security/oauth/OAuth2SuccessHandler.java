@@ -49,7 +49,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         final String finalEmail = email;
 
-        // DB에서 찾고, 없으면 그 자리에서 바로 생성해서 저장합니다. (CUSTOMER_NOT_FOUND 예외 원천 차단)
+// DB에서 찾고, 없으면 그 자리에서 바로 생성해서 저장합니다. (CUSTOMER_NOT_FOUND 예외 원천 차단)
         Customer customer = customerRepository.findByEmail(finalEmail)
                 .orElseGet(() -> customerRepository.save(
                         Customer.builder()
@@ -57,6 +57,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                                 .name(name)
                                 .password(passwordEncoder.encode("social_login_dummy_password")) // 소셜 로그인은 비번이 불필요하므로 더미값
                                 .phoneNumber("010-0000-0000") // 필수값이면 더미값
+                                .currentPoint(0L)
+                                .rank(com.bootcamp.paymentdemo.domain.customer.enums.Rank.NORMAL)
                                 .build()
                 ));
 
