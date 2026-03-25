@@ -11,8 +11,8 @@ public class BillingScheduler {
 
     private final RecurringBillingService recurringBillingService;
 
-    @Scheduled(cron = "0 0 2 * * *")
-    @SchedulerLock(name = "RecurringBillingLock", lockAtMostFor = "10m", lockAtLeastFor = "5m")
+    @Scheduled(cron = "0 0 2 * * *") // 매일 새벽 2시
+    @SchedulerLock(name = "RecurringBillingJob", lockAtMostFor = "20m", lockAtLeastFor = "10m")
     public void runMonthlyBilling() {
         recurringBillingService.processAllRecurringBillings();
     }

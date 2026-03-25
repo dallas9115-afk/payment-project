@@ -6,14 +6,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.UUID;
+import java.util.concurrent.*;
 
 
 @Service
@@ -27,40 +25,51 @@ public class RecurringBillingService {
     public void processAllRecurringBillings() {
         LocalDateTime now = LocalDateTime.now();
         int pageSize = 100;
-        int pageNumber = 0;
+        Long lastId = 0L;
 
-        // [피드백 반영 1] 동시 실행 개수를 10개로 제한 (Rate Limit 방어)
-        ExecutorService executor = Executors.newFixedThreadPool(10);
+        // [피드백 1] 스레드 개수와 큐 크기 제한
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                10, 10, 0L, TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(1000),
+                new ThreadPoolExecutor.CallerRunsPolicy()
+        );
 
-        log.info("정기 결제 프로세스 시작 - 기준 시간: {}", now);
+        log.info("정기 결제 배치 엔진 가동 - 기준 시간: {}", now);
 
         try {
             while (true) {
-                // [피드백 반영 4] 정렬(Sort.by("id")) 추가로 데이터 누락/중복 방지
-                Pageable pageable = PageRequest.of(pageNumber, pageSize, Sort.by("id").ascending());
-
-                Slice<Subscription2> targetSlice = subscriptionRepository.findAllBillingTargets(now, pageable);
-                List<Subscription2> targets = targetSlice.getContent();
+                // [피드백 4] ID 정렬 기반 커서 조회 (누락 방지)
+                Pageable pageable = PageRequest.of(0, pageSize, Sort.by("id").ascending());
+                List<Subscription2> targets = subscriptionRepository.findBillingTargetsCursor(now, lastId, pageable);
 
                 if (targets.isEmpty()) break;
 
-                // [피드백 반영 1] ExecutorService를 이용한 스레드 제어
+                Long maxIdInBatch = lastId;
+
                 for (Subscription2 sub : targets) {
-                    executor.submit(() -> {
-                        try {
-                            log.info("정기 결제 시도: SubID={}, PaymentID 예정", sub.getId());
-                            subscriptionService.executeRecurringBilling(sub);
-                        } catch (Exception e) {
-                            log.error("정기 결제 작업 중 예외 발생 - SubID: {}", sub.getId(), e);
-                        }
-                    });
+                    // [피드백 2] 과부하 방지 (Back-pressure): 큐가 너무 차면 잠시 대기
+                    while (executor.getQueue().size() > 800) {
+                        log.debug("스레드 풀 큐가 가득 참. 대기 중...");
+                        Thread.sleep(100);
+                    }
+
+                    String paymentId = "SUB_RECUR_" + sub.getId() + "_" + UUID.randomUUID().toString().substring(0, 8);
+
+                    // [피드백 3] 엔티티 대신 ID 전달
+                    Long targetId = sub.getId();
+                    executor.submit(() -> subscriptionService.executeRecurringBilling(targetId, paymentId));
+
+                    maxIdInBatch = targetId;
                 }
 
-                if (!targetSlice.hasNext()) break;
-                pageNumber++;
+                lastId = maxIdInBatch;
+
+                if (targets.size() < pageSize) break;
             }
+        } catch (InterruptedException e) {
+            log.error("정기 결제 배치 중 인터럽트 발생", e);
+            Thread.currentThread().interrupt();
         } finally {
-            // [피드백 반영 2] 모든 작업이 끝날 때까지 대기 (Graceful Shutdown)
             executor.shutdown();
             try {
                 if (!executor.awaitTermination(30, TimeUnit.MINUTES)) {
@@ -68,10 +77,7 @@ public class RecurringBillingService {
                 }
             } catch (InterruptedException e) {
                 executor.shutdownNow();
-                Thread.currentThread().interrupt();
             }
         }
-
-        log.info("정기 결제 모든 프로세스 종료");
     }
 }

@@ -1,50 +1,37 @@
 package com.bootcamp.paymentdemo.domain.subscription2.service;
 
-import com.bootcamp.paymentdemo.domain.subscription2.entity.Subscription2;
-import com.bootcamp.paymentdemo.domain.subscription2.entity.SubscriptionStatus2;
-import com.bootcamp.paymentdemo.domain.subscription2.repository.SubscriptionRepository2;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class SubscriptionScheduler2 {
 
-    private final SubscriptionRepository2 subscriptionRepository;
-    private final SubscriptionService2 subscriptionService;
+    // [수정] 직접 서비스를 부르지 않고, 배치 전용 서비스를 주입받습니다.
+    private final RecurringBillingService recurringBillingService;
 
     /**
-     * 매일 새벽 2시에 실행 (Cron 표현식: 초 분 시 일 월 요일)
+     * 매일 새벽 2시에 실행
+     * [피드백 반영] ShedLock을 추가하여 멀티 서버 중복 실행 방지
      */
     @Scheduled(cron = "0 0 2 * * *")
+    @SchedulerLock(name = "RecurringBillingJob", lockAtMostFor = "30m", lockAtLeastFor = "10m")
     public void runMonthlyBilling() {
-        log.info("정기 결제 스케줄러 실행 시작: {}", LocalDateTime.now());
+        log.info("정기 결제 스케줄러 가동: {}", LocalDateTime.now());
 
-        // 1. 오늘 결제 대상자 조회
-        List<Subscription2> targets = subscriptionRepository.findAllByStatusAndNextBillingDateBefore(
-                SubscriptionStatus2.ACTIVE,
-                LocalDateTime.now()
-        );
+        try {
+            // [핵심] 이제 복잡한 루프나 페이징 로직은 이 서비스가 알아서 합니다.
+            recurringBillingService.processAllRecurringBillings();
 
-        log.info("결제 대상자 수: {}명", targets.size());
-
-        // 2. 한 명씩 결제 처리
-        for (Subscription2 sub : targets) {
-            try {
-                // 이 메서드는 우리가 아까 만든 결제 요청 로직을 재사용하거나
-                // 스케줄러용 전용 메서드를 호출합니다.
-                subscriptionService.executeRecurringBilling(sub);
-            } catch (Exception e) {
-                log.error("구독 결제 중 오류 발생 - SubID: {}, 사유: {}", sub.getId(), e.getMessage());
-            }
+        } catch (Exception e) {
+            log.error("정기 결제 배치 실행 중 치명적 오류 발생", e);
         }
 
-        log.info("정기 결제 스케줄러 실행 종료");
+        log.info("정기 결제 스케줄러 종료");
     }
 }

@@ -22,4 +22,14 @@ public interface SubscriptionRepository2 extends JpaRepository<Subscription2, Lo
 
     @Query("SELECT s FROM Subscription2 s WHERE s.status = 'ACTIVE' AND s.nextBillingDate <= :now")
     Slice<Subscription2> findAllBillingTargets(@Param("now") LocalDateTime now, Pageable pageable);
+
+    @Query("SELECT s FROM Subscription2 s " +
+            "WHERE s.status = 'ACTIVE' " +
+            "AND s.nextBillingDate <= :now " +
+            "AND s.id > :lastId " + // [피드백 1] 핵심: 커서 기반 조회
+            "ORDER BY s.id ASC")
+    List<Subscription2> findBillingTargetsCursor(
+            @Param("now") LocalDateTime now,
+            @Param("lastId") Long lastId,
+            Pageable pageable);
 }

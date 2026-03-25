@@ -32,4 +32,6 @@ public interface SubscriptionBillingRepository2 extends JpaRepository<Subscripti
             @Param("scheduledDate") LocalDateTime scheduledDate);
 
     Optional<SubscriptionBilling2> findByPaymentId(String paymentId);
+
+    List<SubscriptionBilling2> findAllBySubscriptionIdOrderByScheduledDateDesc(Long subscriptionId);
 }
