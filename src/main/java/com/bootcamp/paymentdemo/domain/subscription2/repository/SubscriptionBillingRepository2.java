@@ -23,9 +23,9 @@ public interface SubscriptionBillingRepository2 extends JpaRepository<Subscripti
 
 
     @Query("SELECT COUNT(b) > 0 FROM SubscriptionBilling2 b " +
-            "WHERE b.subscription.customerId = :customerId " +
+            "WHERE b.subscription.customer.id = :customerId " + // customerId -> customer.id
             "AND b.subscription.plan.id = :planId " +
-            "AND b.createdAt >= :scheduledDate") // (주의: scheduledDate 필드가 없으면 createdAt 등으로 대체해야 함)
+            "AND b.createdAt >= :scheduledDate")
     boolean existsByCustomerAndPlanAndDate(
             @Param("customerId") Long customerId,
             @Param("planId") Long planId,
