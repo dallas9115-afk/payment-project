@@ -1,13 +1,14 @@
 package com.bootcamp.paymentdemo.security.oauth;
 
 import com.bootcamp.paymentdemo.domain.customer.entity.Customer;
-import com.bootcamp.paymentdemo.domain.customer.repository.CustomerRepository;
+import com.bootcamp.paymentdemo.domain.customer.repository.CustomerRepository; // Repository 직접 주입
 import com.bootcamp.paymentdemo.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.security.crypto.password.PasswordEncoder; // PasswordEncoder 추가
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,35 +20,49 @@ import java.io.IOException;
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
     private final JwtTokenProvider jwtTokenProvider;
+    // CustomerService 대신 Repository와 PasswordEncoder를 사용합니다.
     private final CustomerRepository customerRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
 
-        // 1. 이메일 추출 (구글/카카오 분기)
+        // 구글과 카카오의 이메일 응답 구조가 다를 수 있으므로 안전하게 가져옵니다.
         String email = "";
+        String name = "전사"; // 기본 이름
+
         if (oAuth2User.getAttributes().containsKey("email")) {
-            email = (String) oAuth2User.getAttributes().get("email");
+            email = (String) oAuth2User.getAttributes().get("email"); // 구글
         } else if (oAuth2User.getAttributes().containsKey("kakao_account")) {
+            // 카카오
             java.util.Map<String, Object> kakaoAccount = (java.util.Map<String, Object>) oAuth2User.getAttributes().get("kakao_account");
             if (kakaoAccount.containsKey("email")) {
                 email = (String) kakaoAccount.get("email");
-            } else {
-                email = oAuth2User.getName() + "@social.sparta.com";
             }
         }
 
-        // 2. DB에서 유저 조회 (CustomOAuth2UserService에서 이미 가입시켰으므로 무조건 존재함)
-        // 만약의 예외 상황을 대비해 orElseThrow 대신 안전하게 한 번 더 처리
+        // 이메일이 없으면 임시 이메일 생성 (카카오 동의 안 했을 경우 대비)
+        if (email.isEmpty()) {
+            email = oAuth2User.getName() + "@social.sparta.com";
+        }
+
         final String finalEmail = email;
+
+        // DB에서 찾고, 없으면 그 자리에서 바로 생성해서 저장합니다. (CUSTOMER_NOT_FOUND 예외 원천 차단)
         Customer customer = customerRepository.findByEmail(finalEmail)
-                .orElseGet(() -> customerRepository.findAll().get(0)); // 극단적인 fallback (실제론 도달 안함)
+                .orElseGet(() -> customerRepository.save(
+                        Customer.builder()
+                                .email(finalEmail)
+                                .name(name)
+                                .password(passwordEncoder.encode("social_login_dummy_password")) // 소셜 로그인은 비번이 불필요하므로 더미값
+                                .phoneNumber("010-0000-0000") // 필수값이면 더미값
+                                .build()
+                ));
 
-        // 3. 토큰 발급
-        String token = jwtTokenProvider.generateAccessToken(customer.getId(), finalEmail);
+        String token = jwtTokenProvider.generateAccessToken(customer.getId(), customer.getEmail());
 
-        // 4. 리다이렉트 (상대 경로)
+        // 상대 경로 리다이렉트 유지
         String targetUrl = "/?token=" + token;
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }

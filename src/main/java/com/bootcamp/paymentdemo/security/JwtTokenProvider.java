@@ -1,13 +1,18 @@
 package com.bootcamp.paymentdemo.security;
 
-import io.jsonwebtoken.JwtBuilder;
-import io.jsonwebtoken.Jwts;
+import com.bootcamp.paymentdemo.global.error.CommonError;
+import com.bootcamp.paymentdemo.global.error.CommonException;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.util.Base64;
 import java.util.Date;
 
 @Component
@@ -27,18 +32,12 @@ public class JwtTokenProvider {
         this.refreshTokenExpiration = refreshTokenExpiration;
     }
 
-    // 1. 기존 메서드 (일반 로그인 등에서 사용 - 이메일 없음)
-    public String generateAccessToken(Long id) {
-        return generate(id, null, accessTokenExpiration);
-    }
-
-    // 2. 추가된 오버로딩 메서드 (OAuth2SuccessHandler 등에서 사용 - 이메일 포함)
     public String generateAccessToken(Long id, String email) {
-        return generate(id, email, accessTokenExpiration);
+        return generate(id, email ,accessTokenExpiration);
     }
 
-    public String generateRefreshToken(Long id) {
-        return generate(id, null, refreshTokenExpiration);
+    public String generateRefreshToken(Long id, String email) {
+        return generate(id, email , refreshTokenExpiration);
     }
 
     public Long extractCustomerId(String token) {
@@ -63,11 +62,11 @@ public class JwtTokenProvider {
         }
     }
 
-    // 3. 코어 생성 로직: email 파라미터 추가 및 클레임 적용
     private String generate(Long id, String email, long expiration) {
         Date now = new Date();
         JwtBuilder builder = Jwts.builder()
                 .subject(String.valueOf(id))
+                .claim("email", email)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expiration))
                 .signWith(secretKey);
