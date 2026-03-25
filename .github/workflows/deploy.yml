@@ -40,6 +40,7 @@ jobs:
             echo "1. 기존 컨테이너 중지 및 삭제"
             sudo docker stop infra-skeleton || true
             sudo docker rm infra-skeleton || true
+            sudo docker rmi ${{ secrets.DOCKER_USERNAME }}/infra-skeleton:
             
             echo "2. 최신 이미지 다운로드"
             sudo docker pull ${{ secrets.DOCKER_USERNAME }}/infra-skeleton:latest
