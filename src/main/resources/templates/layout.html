@@ -36,6 +36,11 @@
             </ul>
 
             <div class="navbar-actions">
+                <div id="user-info-container" style="display: none; align-items: center; gap: 1rem; margin-right: 1rem;">
+                    <span id="user-email-display" style="color: var(--text-secondary); font-size: 0.9rem;"></span>
+                    <button onclick="handleLogout()" class="btn btn-outline" style="padding: 0.4rem 1rem; font-size: 0.875rem;">로그아웃</button>
+                </div>
+
                 <div class="config-badge-container">
                     <span class="config-badge skeleton" style="width: 100px; height: 24px;"></span>
                 </div>

@@ -28,28 +28,20 @@ function checkAuthentication() {
 }
 
 /**
- * 네비게이션 바에 사용자 정보 표시
+ * 네비게이션 바에 사용자 정보 표시 (수정됨)
  */
 function displayUserInfo() {
-    // JWT 토큰에서 이메일 추출
     const email = typeof getEmailFromToken === 'function' ? getEmailFromToken() : null;
-    const navbarActions = document.querySelector('.navbar-actions');
+    const userInfoContainer = document.getElementById('user-info-container');
+    const userEmailDisplay = document.getElementById('user-email-display');
 
-    if (email && navbarActions) {
-        // 사용자 정보 요소 추가
-        const userInfo = document.createElement('div');
-        userInfo.style.cssText = 'display: flex; align-items: center; gap: 1rem; margin-right: 1rem;';
-        userInfo.innerHTML = `
-            <span style="color: var(--text-secondary); font-size: 0.9rem;">
-                👤 ${email}
-            </span>
-            <button onclick="handleLogout()" class="btn btn-outline" style="padding: 0.4rem 1rem; font-size: 0.875rem;">
-                로그아웃
-            </button>
-        `;
-
-        // navbar-actions 맨 앞에 삽입
-        navbarActions.insertBefore(userInfo, navbarActions.firstChild);
+    if (email && userInfoContainer && userEmailDisplay) {
+        // 이메일을 세팅하고 영역을 보이게 만듦
+        userEmailDisplay.innerHTML = `👤 ${email}`;
+        userInfoContainer.style.display = 'flex';
+    } else if (userInfoContainer) {
+        // 로그인이 안 되어 있으면 숨김
+        userInfoContainer.style.display = 'none';
     }
 }
 

@@ -163,7 +163,8 @@ async function buildApiUrl(endpointKey, params = {}) {
         );
     }
 
-    return config.api.baseUrl + url;
+    // 수정 : 서버에서 주는 baseURL 대신, 현재 브라우저의 host 사용
+    return window.location.protocol + '//' + window.location.host + url;
 }
 
 // 페이지 로드 시 자동으로 설정 로드
