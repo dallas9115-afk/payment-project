@@ -107,7 +107,7 @@ api:
         body:
           fields:
             - name: customerUid
-              type: Long
+              type: number
               required: true
               description: PortOne 고객 고유 식별자 (서버에서 customerUid로 관리)
               usage: PortOne payment window customer.customerId

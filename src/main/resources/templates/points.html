@@ -219,6 +219,7 @@
         async function loadOrders() {
             try {
                 const result = await makeApiRequest('list-orders', {
+                    pathParams: { customerId: currentUser?.customerUid }
                 });
 
                 if (!validateApiResponse('list-orders', result)) {
