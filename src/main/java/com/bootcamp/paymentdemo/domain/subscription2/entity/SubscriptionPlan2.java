@@ -1,0 +1,43 @@
+package com.bootcamp.paymentdemo.domain.subscription2.entity;
+
+
+import com.bootcamp.paymentdemo.domain.subscription.entity.BillingInterval;
+import com.bootcamp.paymentdemo.global.common.BaseEntity;
+import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "subscription_plan2")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class SubscriptionPlan2 extends BaseEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String name;
+    private Long price;
+
+    @Enumerated(EnumType.STRING)
+    private PlanStatus2 status; // ACTIVE인지 INACTIVE인지
+
+    @Enumerated(EnumType.STRING)
+    private BillingInterval2 billingInterval;
+
+    private int trialPeriodDays;
+
+    // 다음 결제일을 계산하는 로직 예시
+    public LocalDateTime calculateNextBillingDate(LocalDateTime current) {
+        if (this.billingInterval == BillingInterval2.MONTHLY) {
+            return current.plusMonths(1);
+        }
+        return current.plusYears(1);
+    }
+
+
+}

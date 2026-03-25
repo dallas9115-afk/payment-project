@@ -4,6 +4,8 @@ import com.bootcamp.paymentdemo.domain.customer.entity.Customer;
 import com.bootcamp.paymentdemo.domain.customer.enums.Rank;
 import lombok.Builder;
 import lombok.Getter;
+
+import java.util.Date;
 import java.util.Map;
 
 @Getter
@@ -56,7 +58,6 @@ public class OAuthAttributes {
                 .email(email)
                 .name(name)
                 .password("OAUTH_USER_NO_PASSWORD") // 소셜 로그인은 비밀번호가 필요 없음
-                .rank(Rank.NORMAL) // 기본 등급 부여
                 .build();
     }
 }

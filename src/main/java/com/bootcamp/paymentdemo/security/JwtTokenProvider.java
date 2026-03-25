@@ -9,94 +9,65 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Base64;
 import java.util.Date;
 
 @Component
-@Slf4j
 public class JwtTokenProvider {
 
-    // JWT 비밀키
-    @Value("${jwt.secret-key}")
-    private String secretKey;
-    private Key key;
+    private final SecretKey secretKey;
+    private final long accessTokenExpiration;
+    private final long refreshTokenExpiration;
 
-    // 토큰 만료 시간 설정
-    private final long TOKEN_EXPIRE_TIME = 24 * 60 * 60 * 1000L;
-
-    @PostConstruct
-    public void init() {
-        key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
+    public JwtTokenProvider(
+            @Value("${jwt.secret}") String secret,
+            @Value("${jwt.access-token-expiration}") long accessTokenExpiration,
+            @Value("${jwt.refresh-token-expiration}") long refreshTokenExpiration
+    ) {
+        this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.accessTokenExpiration = accessTokenExpiration;
+        this.refreshTokenExpiration = refreshTokenExpiration;
     }
 
-    // JWT 토큰 생성
-    public String createToken(Long customerId, String email) {
-        Date date = new Date();
-
-        return Jwts.builder()
-                .setSubject(String.valueOf(customerId))
-                .claim("email", email)
-                .setIssuedAt(date)
-                .setExpiration(new Date(date.getTime() + TOKEN_EXPIRE_TIME))
-                .signWith(key, SignatureAlgorithm.HS256)
-                .compact();
+    public String generateAccessToken(Long id) {
+        return generate(id, accessTokenExpiration);
+    }
+    public String generateRefreshToken(Long id) {
+        return generate(id, refreshTokenExpiration);
     }
 
-    // JWT 토큰 검증
+    public Long extractCustomerId(String token) {
+        String subject = Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getSubject();
+        return Long.parseLong(subject);
+    }
+
     public boolean validateToken(String token) {
         try {
             Jwts.parser()
-                    .setSigningKey(key)
+                    .verifyWith(secretKey)
                     .build()
                     .parseSignedClaims(token);
             return true;
-
-        } catch (SecurityException | MalformedJwtException | SignatureException e) {
-            log.error("JWT 토큰이 유효하지 않습니다.");
-            throw new CommonException(CommonError.INVALID_TOKEN);
-
-        } catch (ExpiredJwtException e) {
-            log.error("JWT 토큰이 만료되었습니다.");
-            throw new CommonException(CommonError.EXPIRED_TOKEN);
-
-        } catch (UnsupportedJwtException e) {
-            log.error("지원되지 않는 JWT 토큰입니다.");
-            throw new CommonException(CommonError.UNSUPPORTED_TOKEN);
-
-        } catch (IllegalArgumentException e) {
-            log.error("JWT 토큰이 비어있습니다.");
-            throw new CommonException(CommonError.EMPTY_TOKEN);
+        } catch (Exception e) {
+            return false;
         }
     }
 
-    // JWT 토큰 정보 추출
-    public Claims getCustomerInfoFromToken(String token) {
-        return Jwts.parser()
-                .setSigningKey(key)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-    }
-
-    // JWT 토큰에서 이메일 추출
-    public String getEmail(String token) {
-        return getCustomerInfoFromToken(token)
-                .get("email", String.class);
-    }
-
-    // 토큰 생성
-    public String createToken(String email) {
-        Date date = new Date();
-
+    private String generate(Long id, long expiration) {
+        Date now = new Date();
         return Jwts.builder()
-                .setSubject(email)
-                .claim("email", email)
-                .setIssuedAt(date)
-                .setExpiration(new Date(date.getTime() + TOKEN_EXPIRE_TIME))
-                .signWith(key, SignatureAlgorithm.HS256)
+                .subject(String.valueOf(id))
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + expiration))
+                .signWith(secretKey)
                 .compact();
     }
-
 }

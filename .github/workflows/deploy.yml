@@ -55,6 +55,10 @@ jobs:
               -e PORTONE_CHANNEL_KG="${{ secrets.PORTONE_CHANNEL_KG }}" \
               -e PORTONE_CHANNEL_TOSS="${{ secrets.PORTONE_CHANNEL_TOSS }}" \
               -e JWT_SECRET_KEY="${{ secrets.JWT_SECRET_KEY }}" \
+              -e JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+              -e JWT_ACCESS_TOKEN_EXPIRATION="${{ secrets.JWT_ACCESS_TOKEN_EXPIRATION }}" \
+              -e JWT_REFRESH_TOKEN_EXPIRATION="${{ secrets.JWT_REFRESH_TOKEN_EXPIRATION }}" \
+              -e JWT_REFRESH_TOKEN_COOKIE_MAX_AGE="${{ secrets.JWT_REFRESH_TOKEN_COOKIE_MAX_AGE }}" \
               -e REDIS_HOST="${{ secrets.REDIS_HOST }}" \
               -e REDIS_PASSWORD="${{ secrets.REDIS_PASSWORD }}" \
               -e GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \

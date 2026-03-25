@@ -220,4 +220,49 @@ public class PortOneApiClient {
         }
         return "\"" + idempotencyKey + "\"";
     }
+
+    /**
+     * 포트원 빌링키 해지(삭제) 요청
+     * - 구독 해지 시 호출하여 다음 결제가 일어나지 않도록 방지합니다.
+     *
+     * @param billingKey 삭제할 빌링키
+     */
+    public void unsubscribeBillingKey(String billingKey) {
+        // 포트원 V2 빌링키 삭제 엔드포인트
+        String url = portOneProperties.getApi().getBaseUrl() + "/billing-keys/" + billingKey;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "PortOne " + portOneProperties.getApi().getSecret());
+        // DELETE 요청도 안전을 위해 멱등키를 생성해서 보냅니다.
+        headers.set("Idempotency-Key", quoteIdempotencyKey("unsub-" + billingKey));
+
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+        try {
+            log.info("포트원 빌링키 해지 요청 시작 - billingKey={}", billingKey);
+
+            restTemplate.exchange(
+                    url,
+                    HttpMethod.DELETE,
+                    entity,
+                    Void.class
+            );
+
+            log.info("포트원 빌링키 해지 성공 - billingKey={}", billingKey);
+
+        } catch (RestClientResponseException e) {
+            int statusCode = e.getStatusCode().value();
+            // 이미 삭제된 키인 경우(404)는 성공으로 간주해도 무방하지만, 일단 로그를 남깁니다.
+            log.error("포트원 빌링키 해지 HTTP 오류 - billingKey={}, status={}, body={}",
+                    billingKey, statusCode, e.getResponseBodyAsString());
+
+            // 404가 아니면 예외를 던져서 서비스 레이어에서 CANCEL_FAILED 처리를 하게 합니다.
+            if (statusCode != 404) {
+                throw new PortOneApiException("빌링키 해지 중 오류가 발생했습니다. (" + statusCode + ")", false);
+            }
+        } catch (Exception e) {
+            log.error("포트원 빌링키 해지 통신 실패 - billingKey={}, message={}", billingKey, e.getMessage());
+            throw new PortOneApiException("빌링키 해지 통신 중 알 수 없는 오류 발생", true);
+        }
+    }
 }
