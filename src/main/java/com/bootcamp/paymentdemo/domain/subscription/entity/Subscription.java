@@ -16,6 +16,7 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.h2.mvstore.type.LongDataType;
 
 import java.time.LocalDateTime;
 
@@ -42,27 +43,22 @@ public class Subscription extends BaseEntity {
     @JoinColumn(name = "plan_id", nullable = false)
     private Plan plan;
 
-    // 구독 결제방법
     @Column(nullable = false)
     private String paymentMethodId;
 
-    // 구독 상태
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private SubscriptionStatus status;
 
-    // 구독 시작일
     @Column(nullable = false)
     private LocalDateTime currentPeriodStart;
 
-
-    // 체험 구독 종료일
     @Column(nullable = false)
     private LocalDateTime currentPeriodEnd;
 
-    private LocalDateTime trialEnd;
     private LocalDateTime canceledAt;
     private LocalDateTime endedAt;
+    private LocalDateTime  banedAt;
 
     public Subscription(String subscriptionId, Customer customer, Plan plan, String paymentMethodId) {
         LocalDateTime now = LocalDateTime.now();
@@ -73,18 +69,11 @@ public class Subscription extends BaseEntity {
         this.paymentMethodId = paymentMethodId;
         this.currentPeriodStart = now;
         this.currentPeriodEnd = calculatePeriodEnd(now, plan.getBillingInterval());
-
-        // 체험 구독 기간 검증 로직
-        // trialPeriodDays > 0; 이라면  TRIALING 상태, 체험 구독 종료일 설정
-        // 아니라면 체험 구독 기간 = 0: ACTIVE 상태, 즉시 결제
-        if (plan.hasTrial()) {
-            this.status = SubscriptionStatus.TRIALING;
-            this.trialEnd = now.plusDays(plan.getTrialPeriodDays());
-        } else {
-            this.status = SubscriptionStatus.ACTIVE;
-        }
+        this.status = SubscriptionStatus.ACTIVE;
     }
 
+
+    // 구독 계산 메서드
     private LocalDateTime calculatePeriodEnd(LocalDateTime startAt, BillingInterval billingInterval) {
         if (billingInterval == BillingInterval.YEARLY) {
             return startAt.plusYears(1);
@@ -92,13 +81,10 @@ public class Subscription extends BaseEntity {
         return startAt.plusMonths(1);
     }
 
-    // 구독 상태 변경 로직
     public void activate() {
         this.status = SubscriptionStatus.ACTIVE;
-        this.trialEnd = null;
     }
 
-    // 바로 결제
     public void markPastDue() {
         this.status = SubscriptionStatus.PAST_DUE;
     }
@@ -108,15 +94,16 @@ public class Subscription extends BaseEntity {
         this.canceledAt = LocalDateTime.now();
     }
 
-
-    // 구독 종료
     public void end() {
         this.status = SubscriptionStatus.ENDED;
         this.endedAt = LocalDateTime.now();
     }
 
+    public void ban(){
+        this.status=SubscriptionStatus.BAN;
+        this.banedAt = LocalDateTime.now();
+    }
 
-    // 구독 갱신.
     public void renew() {
         this.status = SubscriptionStatus.ACTIVE;
         this.currentPeriodStart = this.currentPeriodEnd;
