@@ -60,7 +60,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                                 .build()
                 ));
 
-        String token = jwtTokenProvider.generateAccessToken(customer.getId());
+        String token = jwtTokenProvider.generateAccessToken(customer.getId(), customer.getEmail());
 
         // 상대 경로 리다이렉트 유지
         String targetUrl = "/?token=" + token;

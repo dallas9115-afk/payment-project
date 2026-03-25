@@ -66,8 +66,8 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
-    public Customer findById(Long id) {
-        return customerRepository.findById(id)
+    public Customer findById(Long customerId) {
+        return customerRepository.findById(customerId)
                 .orElseThrow(() -> new CommonException(CommonError.CUSTOMER_NOT_FOUND));
     }
 }

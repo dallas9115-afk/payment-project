@@ -77,25 +77,21 @@ public class AuthController {
 
         Customer customer = customerService.findById(customerId);
 
-        return ResponseEntity.ok(Map.of(
-                "customerUid", "CUST-" + customer.getId(),
-                "email", customer.getEmail(),
-                "name", customer.getName()
-        ));
+        return ResponseEntity.ok(CurrentCustomerResponseDto.from(customer));
     }
 
-@PostMapping("/logout")
-public ResponseEntity<Void> logout(@CookieValue(name = AuthController.REFRESH_TOKEN_COOKIE, required = false) String refreshToken, HttpServletResponse response) {
-    if (refreshToken != null) {
-        authService.logout(refreshToken);
-    }
-    jakarta.servlet.http.Cookie deleteCookie = new jakarta.servlet.http.Cookie(REFRESH_TOKEN_COOKIE, "");
-    deleteCookie.setHttpOnly(true);
-    deleteCookie.setSecure(true);
-    deleteCookie.setPath("/");
-    deleteCookie.setMaxAge(0);
-    response.addCookie(deleteCookie);
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@CookieValue(name = AuthController.REFRESH_TOKEN_COOKIE, required = false) String refreshToken, HttpServletResponse response) {
+        if (refreshToken != null) {
+            authService.logout(refreshToken);
+        }
+        jakarta.servlet.http.Cookie deleteCookie = new jakarta.servlet.http.Cookie(REFRESH_TOKEN_COOKIE, "");
+        deleteCookie.setHttpOnly(true);
+        deleteCookie.setSecure(true);
+        deleteCookie.setPath("/");
+        deleteCookie.setMaxAge(0);
+        response.addCookie(deleteCookie);
 
-    return ResponseEntity.ok().build();
-}
+        return ResponseEntity.ok().build();
+    }
 }
