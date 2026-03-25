@@ -30,8 +30,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         Customer customer = customerService.findCustomerByEmail(email);
         String token = jwtTokenProvider.generateAccessToken(customer.getId());
 
-        // 프론트엔드로 리다이렉트
-        String targetUrl = "https://15.164.23.193.nip.io/?token=" + token;
+        // 수정: 도메인과 프로토콜(http/https)을 하드코딩하지 않고 상대 경로 사용
+        String targetUrl = "/?token=" + token;
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 }

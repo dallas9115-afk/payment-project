@@ -70,8 +70,7 @@ spring:
 
 server:
   port: 8080
-  servlet:
-    context-path: /
+  forward-headers-strategy: native  # <-- 이 설정이 있으면 Caddy가 넘겨준 HTTPS 정보를 스프링에서 활용
 
 # PortOne Configuration
 portone:
