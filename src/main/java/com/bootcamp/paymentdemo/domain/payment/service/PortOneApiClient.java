@@ -263,6 +263,9 @@ public class PortOneApiClient {
         } catch (Exception e) {
             log.error("포트원 빌링키 해지 통신 실패 - billingKey={}, message={}", billingKey, e.getMessage());
             throw new PortOneApiException("빌링키 해지 통신 중 알 수 없는 오류 발생", true);
+
+
+
         }
     }
 }
