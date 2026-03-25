@@ -1,8 +1,7 @@
 package com.bootcamp.paymentdemo.domain.subscription2.entity;
 
 
-import com.bootcamp.paymentdemo.domain.subscription.entity.BillingInterval;
-import com.bootcamp.paymentdemo.domain.subscription.entity.PlanLevel;
+
 import com.bootcamp.paymentdemo.global.common.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -33,7 +32,7 @@ public class SubscriptionPlan2 extends BaseEntity {
 
     private int trialPeriodDays;
 
-    private PlanLevel level;
+    private PlanLevel2 level;
 
     @Column(length = 500)
     private String description;
