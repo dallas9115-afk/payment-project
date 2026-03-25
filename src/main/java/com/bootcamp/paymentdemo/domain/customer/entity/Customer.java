@@ -1,6 +1,7 @@
 package com.bootcamp.paymentdemo.domain.customer.entity;
 
 import com.bootcamp.paymentdemo.domain.customer.enums.Rank;
+import com.bootcamp.paymentdemo.domain.order.entity.Order;
 import com.bootcamp.paymentdemo.domain.point.entity.PointDetail;
 import com.bootcamp.paymentdemo.domain.point.entity.PointHistory;
 import com.bootcamp.paymentdemo.domain.point.entity.PointType;
@@ -100,6 +101,7 @@ public class Customer {
      */
     public PointHistory deductPointWithDetail(PointDetail detail,
                                               Long amountToDeduct,
+                                              Order order,
                                               String orderId,
                                               PointType type,
                                               String reason) {
@@ -114,6 +116,7 @@ public class Customer {
         return PointHistory.builder()
                 .customer(this) // [주의] .user()에서 .customer()로 연관관계 필드명 변경 필요
                 .pointDetail(detail)
+                .order(order)
                 .amount(-amountToDeduct)
                 .beforePoint(before)
                 .afterPoint(after)

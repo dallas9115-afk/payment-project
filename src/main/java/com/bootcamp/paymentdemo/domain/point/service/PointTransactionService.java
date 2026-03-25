@@ -64,6 +64,8 @@ public class PointTransactionService {
         // 3. [상세 내역 조회] 만료일이 가장 빠른 순서대로, 잔액이 남은 것들만 가져옴
         List<PointDetail> availableDetails = pointDetailRepository
                 .findAllByCustomerIdAndRemainAmountGreaterThanOrderByExpiredAtAsc(customerId, 0);
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalStateException("주문 정보를 찾을 수 없습니다."));
 
         long remainToDeduct = totalAmountToUse;
 
@@ -80,6 +82,7 @@ public class PointTransactionService {
             PointHistory history = customer.deductPointWithDetail(
                     detail,
                     deductAmount,
+                    order,
                     String.valueOf(orderId),
                     PointType.USED,
                     "과자 결제 사용"
@@ -341,9 +344,16 @@ public class PointTransactionService {
             Long orderId,
             String reason
     ) {
+        Order order = null;
+        if (orderId != null) {
+            order = orderRepository.findById(orderId)
+                    .orElseThrow(() -> new IllegalStateException("주문 정보를 찾을 수 없습니다."));
+        }
+
         pointHistoryRepository.save(PointHistory.builder()
                 .customer(customer)
                 .pointDetail(detail)
+                .order(order)
                 .type(type)
                 .amount(amount)
                 .beforePoint(beforePoint)

@@ -17,6 +17,7 @@ public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
     private final PasswordEncoder passwordEncoder;
+    private final MembershipService membershipService;
 
     @Override
     public CustomerSignupResponse create(CustomerSignupRequest request) {
@@ -35,6 +36,8 @@ public class CustomerServiceImpl implements CustomerService {
                         .phoneNumber(request.phoneNumber())
                         .build()
         );
+
+        membershipService.createDefaultMembership(customer);
 
         return CustomerSignupResponse.builder()
                 .id(customer.getId())

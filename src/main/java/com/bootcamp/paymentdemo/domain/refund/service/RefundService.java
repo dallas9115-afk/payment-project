@@ -29,7 +29,6 @@ public class RefundService {
     private final PaymentAccessValidator paymentAccessValidator;
     private final PointTransactionService pointTransactionService;
 
-    @Transactional
     @DistributedLock(key = "'lock:payment:cancel:' + #paymentId", waitTime = 3, leaseTime = 15)
     public RefundResponse cancel(Authentication authentication, String paymentId, RefundRequest request) {
         Payment payment = paymentAccessValidator.getAuthorizedPayment(authentication, paymentId);
@@ -51,7 +50,7 @@ public class RefundService {
         Refund refund = existingRefund;
         if (refund == null) {
             refund = Refund.createRequested(payment, cancelAmount, reason);
-            refundRepository.save(refund);
+            refundRepository.saveAndFlush(refund);
         }
 
         String resultMessage = paymentLifecycleService.cancelApprovedPayment(

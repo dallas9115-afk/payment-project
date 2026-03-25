@@ -21,6 +21,6 @@ public interface OrderRepository extends JpaRepository<Order,Long> {
 
 
     // 형민님 제가 해당 메서드가 필요해서... 잠시 추가하겠읍니다.. 리팩터링 이후에 customerId를 사용해야되서링..
-    @Query("SELECT SUM(o.totalAmount) FROM Order o WHERE o.customer.id = :customerId")
+    @Query("SELECT COALESCE(SUM(o.totalAmount), 0) FROM Order o WHERE o.customer.id = :customerId AND o.status = com.bootcamp.paymentdemo.domain.order.entity.OrderStatus.PAID")
     Long sumPaidAmountByCustomerId(@Param("customerId") Long customerId);
 }
