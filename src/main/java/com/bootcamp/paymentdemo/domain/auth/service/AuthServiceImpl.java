@@ -51,7 +51,8 @@ public class AuthServiceImpl implements AuthService {
             throw new CommonException(CommonError.INVALID_TOKEN);
         }
 
-        String newAccessToken = jwtTokenProvider.generateAccessToken(id);
+        Customer customer = customerService.findById(id);
+        String newAccessToken = jwtTokenProvider.generateAccessToken(id, customer.getEmail());
         return new RefreshResponse(newAccessToken);
     }
 
@@ -69,8 +70,10 @@ public class AuthServiceImpl implements AuthService {
             throw new CommonException(CommonError.LOGIN_FAILED);
         }
 
-        String accessToken = jwtTokenProvider.generateAccessToken(customer.getId());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(customer.getId());
+        String accessToken = jwtTokenProvider.generateAccessToken(
+                customer.getId(), customer.getEmail()
+        );
+        String refreshToken = jwtTokenProvider.generateRefreshToken(customer.getId(), customer.getEmail());
 
         tokenService.saveRefreshToken(customer.getId(), refreshToken);
 
