@@ -5,10 +5,20 @@ import com.bootcamp.paymentdemo.domain.customer.enums.Rank;
 import com.bootcamp.paymentdemo.domain.customer.repository.CustomerRepository;
 import com.bootcamp.paymentdemo.domain.product.entity.Product;
 import com.bootcamp.paymentdemo.domain.product.repository.ProductRepository;
+import com.bootcamp.paymentdemo.domain.subscription.entity.PlanLevel;
+import com.bootcamp.paymentdemo.domain.subscription2.entity.BillingInterval2;
+import com.bootcamp.paymentdemo.domain.subscription2.entity.PlanLevel2;
+import com.bootcamp.paymentdemo.domain.subscription2.entity.PlanStatus2;
+import com.bootcamp.paymentdemo.domain.subscription2.entity.SubscriptionPlan2;
+import com.bootcamp.paymentdemo.domain.subscription2.repository.SubscriptionPlanRepository2;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -19,11 +29,13 @@ public class Datainitializer implements CommandLineRunner {
     private final ProductRepository productRepository;
     private final CustomerRepository customerRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SubscriptionPlanRepository2 planRepository;
 
     @Override
     public void run(String...args){
         seedTestCustomer();
         seedProducts();
+        seedPlans();
     }
 
     private void seedTestCustomer() {
@@ -88,6 +100,24 @@ public class Datainitializer implements CommandLineRunner {
                 "오징어 맛 스낵",
                 "과자"
         ));
+    }
+
+    private void seedPlans() {
+        if (planRepository.count() > 0) {
+            return;
+        }
+
+        List<SubscriptionPlan2> defaultPlans = Arrays.stream(PlanLevel2.values())
+                .map(level -> SubscriptionPlan2.builder()
+                        .name(level.getValue())
+                        .price((long) level.getAdditionalAmount())
+                        .description(level.getContent())
+                        .interval(BillingInterval2.MONTHLY)
+                        .status(PlanStatus2.ACTIVE)
+                        .build())
+                .collect(Collectors.toList());
+
+        planRepository.saveAll(defaultPlans);
     }
 }
 

@@ -2,11 +2,10 @@ package com.bootcamp.paymentdemo.domain.subscription2.entity;
 
 
 import com.bootcamp.paymentdemo.domain.subscription.entity.BillingInterval;
+import com.bootcamp.paymentdemo.domain.subscription.entity.PlanLevel;
 import com.bootcamp.paymentdemo.global.common.BaseEntity;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -14,6 +13,8 @@ import java.time.LocalDateTime;
 @Table(name = "subscription_plan2")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Builder
+@AllArgsConstructor
 public class SubscriptionPlan2 extends BaseEntity {
 
     @Id
@@ -27,9 +28,19 @@ public class SubscriptionPlan2 extends BaseEntity {
     private PlanStatus2 status; // ACTIVE인지 INACTIVE인지
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "billing_interval2")
     private BillingInterval2 billingInterval;
 
     private int trialPeriodDays;
+
+    private PlanLevel level;
+
+    @Column(length = 500)
+    private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "plan_interval")
+    private BillingInterval2 interval;
 
     // 다음 결제일을 계산하는 로직 예시
     public LocalDateTime calculateNextBillingDate(LocalDateTime current) {

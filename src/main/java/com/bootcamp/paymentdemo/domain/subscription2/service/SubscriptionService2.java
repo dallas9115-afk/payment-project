@@ -1,6 +1,8 @@
 package com.bootcamp.paymentdemo.domain.subscription2.service;
 
 
+import com.bootcamp.paymentdemo.domain.customer.entity.Customer;
+import com.bootcamp.paymentdemo.domain.customer.repository.CustomerRepository;
 import com.bootcamp.paymentdemo.domain.payment.enums.PaymentMethodStatus;
 import com.bootcamp.paymentdemo.domain.payment.service.PortOneApiClient;
 import com.bootcamp.paymentdemo.domain.subscription2.dto.BillingContext2;
@@ -33,6 +35,7 @@ public class SubscriptionService2 {
     private final SubscriptionPaymentMethodRepository2 subscriptionPaymentMethodRepository;
     private final SubscriptionBillingRepository2 billingRepository;
     private final PortOneApiClient portOneApiClient;
+    private final CustomerRepository customerRepository;
 
     //구독 신청 및 결제 준비
     public Long initiateSubscription(Long customerId, Long planId, SubscriptionRequest2 request) {
@@ -104,8 +107,12 @@ public class SubscriptionService2 {
            subscriptionPaymentMethodRepository.save(method);
 
            // 3. 구독 정보 생성 (PENDING 상태)
+
+           Customer customer = customerRepository.findById(customerId)
+                   .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+
            Subscription2 subscription = Subscription2.builder()
-                   .customerId(customerId)
+                   .customer(customer)
                    .plan(plan)
                    .paymentMethod(method)
                    .status(SubscriptionStatus2.PENDING)
@@ -272,7 +279,7 @@ public class SubscriptionService2 {
                 sub.getId(),
                 sub.getPaymentMethod().getBillingKey(),
                 sub.getPlan().getPrice(),
-                sub.getCustomerId()
+                sub.getCustomer().getId()
         );
     }
 
@@ -282,7 +289,7 @@ public class SubscriptionService2 {
         Subscription2 subscription = subscriptionRepository.findById(subscriptionId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 구독입니다."));
 
-        if (!subscription.getCustomerId().equals(customerId)) {
+        if (!subscription.getCustomer().getId().equals(customerId)) {
             throw new IllegalStateException("해지 권한이 없습니다.");
         }
 
@@ -318,7 +325,7 @@ public class SubscriptionService2 {
                     .orElseThrow(() -> new IllegalArgumentException("구독 내용 없음."));
 
             // [피드백 1] 보안 체크: 내 구독인지 확인
-            validateOwner(customerId, sub.getCustomerId());
+            validateOwner(customerId, sub.getCustomer().getId());
 
             // [피드백 3] Service에서 DTO로 변환하여 반환
             return SubscriptionResponse2.fromEntity(sub);
@@ -333,7 +340,7 @@ public class SubscriptionService2 {
                     .orElseThrow(() -> new IllegalArgumentException("구독 내용 없음"));
 
             // 보안 체크
-            validateOwner(customerId, sub.getCustomerId());
+            validateOwner(customerId, sub.getCustomer().getId());
 
             List<SubscriptionBilling2> history = billingRepository.findAllBySubscriptionIdOrderByScheduledDateDesc(subscriptionId);
 
@@ -349,6 +356,21 @@ public class SubscriptionService2 {
                 throw new AccessDeniedException("해당 데이터에 접근할 권한이 없습니다.");
             }
         }
+
+
+
+    /**
+     * 활성화된 모든 구독 플랜 목록을 조회합니다.
+     * @return SubscriptionPlan2 엔티티 리스트
+     */
+    @Transactional(readOnly = true) // 조회 전용이므로 성능 최적화!
+    public List<SubscriptionPlan2> getActivePlans() {
+        log.info("DB에서 모든 구독 플랜을 조회합니다.");
+
+        // Repository를 통해 모든 플랜 데이터를 가져옵니다.
+        // 만약 상태가 ACTIVE인 것만 가져오고 싶다면 findByStatus(PlanStatus2.ACTIVE)를 쓸 수도 있습니다.
+        return subscriptionPlanRepository.findAll();
+    }
 
 
 
