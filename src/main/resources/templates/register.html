@@ -132,7 +132,7 @@
                 return;
             }
 
-            if (result.success) {
+            if (result.id || result.success) {
                 // 회원가입 성공
                 showAlert('회원가입이 완료되었습니다!', 'success');
                 setTimeout(() => {
