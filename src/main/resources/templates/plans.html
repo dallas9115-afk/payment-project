@@ -35,7 +35,7 @@
 
     <div class="main-container">
         <div class="content-area">
-            <h1 style="font-size: 2rem; margin-bottom: 0.5rem; text-align: center;">⭐ 구독 플랜</h1>
+            <h1 style="font-size: 2rem; margin-bottom: 0.5rem; text-align: center;">⭐ 단골 등급</h1>
             <p style="text-align: center; color: var(--text-secondary); margin-bottom: 3rem;">
                 필요에 맞는 완벽한 플랜을 선택하세요
             </p>
@@ -149,7 +149,7 @@
             container.innerHTML = plans.map((plan, index) => {
                 const isPopular = index === popularIndex && plans.length >= 3;
                 const emoji = planEmojis[plan.name?.toUpperCase()] || planEmojis[plan.planId] || '📦';
-                const features = defaultFeatures[plan.name?.toUpperCase()] || ['플랜 혜택 제공'];
+                const features = defaultFeatures[plan.name?.toUpperCase()] || [];
                 const cycleText = billingCycleText[plan.billingCycle] || '월';
                 const buttonClass = isPopular ? 'btn-primary' : 'btn-outline';
                 const cardStyle = isPopular ? 'border-color: var(--primary); border-width: 3px; transform: scale(1.05);' : '';
@@ -164,11 +164,19 @@
                         <div style="text-align: center;">
                             <div style="font-size: 3rem; margin-bottom: 1rem;">${emoji}</div>
                             <div class="card-header">${plan.name}</div>
+                            ${plan.description ? `<p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">${plan.description}</p>` : ''}
                             <div class="price">₩${plan.amount.toLocaleString()}<span style="font-size: 1rem; color: var(--text-secondary);">/${cycleText}</span></div>
                         </div>
+                        ${plan.content ? `
+                        <div style="margin: 1.5rem 0; padding: 1rem; background: var(--bg-secondary); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 0.85rem; line-height: 1.6;">
+                            ${plan.content}
+                        </div>
+                        ` : ''}
+                        ${features.length > 0 ? `
                         <ul class="features-list" style="margin: 2rem 0;">
                             ${features.map(feature => `<li class="feature-item">${feature}</li>`).join('')}
                         </ul>
+                        ` : ''}
                         <button class="btn ${buttonClass}" onclick="goToSubscribe('${plan.planId}')" style="width: 100%;">
                             ${plan.name} 선택
                         </button>

@@ -13,7 +13,7 @@ import com.bootcamp.paymentdemo.domain.payment.entity.Payment;
  */
 public record PaymentConfirmResponse(
         boolean success,
-        Long orderId,
+        String orderId,
         String status,
         String paymentId,
         String message
@@ -21,7 +21,7 @@ public record PaymentConfirmResponse(
     public static PaymentConfirmResponse success(Payment payment) {
         return new PaymentConfirmResponse(
                 true,
-                payment.getOrder().getId(),
+                payment.getOrder().getOrderId(),
                 payment.getStatus().name(),
                 payment.getPaymentId(),
                 "결제 확정 성공"
@@ -31,7 +31,7 @@ public record PaymentConfirmResponse(
     public static PaymentConfirmResponse alreadyProcessed(Payment payment) {
         return new PaymentConfirmResponse(
                 true,
-                payment.getOrder().getId(),
+                payment.getOrder().getOrderId(),
                 payment.getStatus().name(),
                 payment.getPaymentId(),
                 "이미 처리된 결제입니다."
@@ -41,7 +41,7 @@ public record PaymentConfirmResponse(
     public static PaymentConfirmResponse failed(Payment payment, String message) {
         return new PaymentConfirmResponse(
                 false,
-                payment.getOrder().getId(),
+                payment.getOrder().getOrderId(),
                 payment.getStatus().name(),
                 payment.getPaymentId(),
                 message

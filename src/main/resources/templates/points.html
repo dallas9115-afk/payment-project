@@ -37,7 +37,7 @@
 
     <div class="main-container">
         <div class="content-area">
-            <h1 style="font-size: 2rem; margin-bottom: 2rem;">💰 포인트 포함 결제</h1>
+            <h1 style="font-size: 2rem; margin-bottom: 2rem;">💰 도장카드</h1>
 
             <!-- API 구현 상태 안내 -->
             <div class="alert alert-info" style="margin-bottom: 1.5rem;">
@@ -458,7 +458,7 @@
                     customer: {
                         customerId: currentUser.customerUid,
                         fullName: currentUser.name,
-                        phoneNumber: currentUser.phone || '01012345678',  // KG 이니시스 필수
+                        phoneNumber: currentUser.phoneNumber || '01012345678',  // KG 이니시스 필수
                         email: currentUser.email
                     }
                 };

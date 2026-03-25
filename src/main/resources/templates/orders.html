@@ -37,7 +37,7 @@
 
     <div class="main-container">
         <div class="content-area">
-            <h1 style="font-size: 2rem; margin-bottom: 2rem;">📦 주문 관리</h1>
+            <h1 style="font-size: 2rem; margin-bottom: 2rem;">📦 주문서</h1>
 
             <!-- API 구현 상태 안내 -->
             <div class="alert alert-warning" style="margin-bottom: 1.5rem;">
@@ -442,7 +442,7 @@
                     customer: {
                         customerId: currentUser.customerUid,  // PortOne에 전달할 고객 UID
                         fullName: currentUser.name,
-                        phoneNumber: currentUser.phone || '01012345678',  // KG 이니시스 필수
+                        phoneNumber: currentUser.phoneNumber || '01012345678',  // KG 이니시스 필수
                         email: currentUser.email
                     }
                 };

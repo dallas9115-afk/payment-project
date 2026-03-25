@@ -28,7 +28,7 @@ api:
     # 인증 (Authentication)
     # ========================================
     login:
-      url: api/auth/v1/login
+      url: /api/auth/v1/login
       method: POST
       description: 사용자 로그인
       request:
@@ -72,30 +72,42 @@ api:
           - name: password
             type: string
             required: true
-          - name: phone
+          - name: phoneNumber
             type: string
             required: true
       response:
         body:
           fields:
-            - name: success
-              type: boolean
+            - name: id
+              type: Long
               required: true
-              description: 회원가입 성공 여부
-            - name: message
+              description: 생성된 사용자 ID
+            - name: name
               type: string
-              required: false
-              description: 에러 메시지 (실패 시)
+              required: true
+              description: 사용자 이름
+            - name: email
+              type: string
+              required: true
+              description: 사용자 이메일
+            - name: phoneNumber
+              type: string
+              required: true
+              description: 사용자 전화번호
+            - name: createdAt
+              type: string
+              required: true
+              description: 생성 시간
 
     get-current-user:
-      url: api/auth/v1/m
+      url: /api/auth/v1/me
       method: GET
       description: 현재 로그인한 사용자 정보 조회
       response:
         body:
           fields:
             - name: customerUid
-              type: number
+              type: Long
               required: true
               description: PortOne 고객 고유 식별자 (서버에서 customerUid로 관리)
               usage: PortOne payment window customer.customerId
@@ -109,15 +121,11 @@ api:
               required: true
               description: 사용자 이름
               usage: PortOne payment window customer.fullName
-            - name: phone
+            - name: phoneNumber
               type: string
               required: true
               description: 사용자 전화번호 (KG 이니시스 필수)
               usage: PortOne payment window customer.phoneNumber
-            - name: pointBalance
-              type: number
-              required: true
-              description: 현재 포인트 잔액
 
     # ========================================
     # 상품 & 주문 (Product & Order)
@@ -201,7 +209,7 @@ api:
             - name: finalAmount
               type: number
               required: false
-              description: 최종 결제 금액 (포인트 차감 후)
+              description: 최종 결제 금액
             - name: earnedPoints
               type: number
               required: false
@@ -278,10 +286,14 @@ api:
               type: string
               required: false
               description: 변경된 주문 상태
-#            - name: message
-#              type: string
-#              required: false
-#              description: 처리 결과 메시지
+            - name: paymentId
+              type: string
+              required: false
+              description: 결제 ID
+            - name: message
+              type: string
+              required: false
+              description: 처리 결과 메시지
 
 
     cancel-payment:
@@ -318,7 +330,7 @@ api:
     # ========================================
     list-plans:
       url: /api/v1/plans
-      method:
+      method: GET
       description: 구독 플랜 목록 조회
       response:
         body:
@@ -340,10 +352,18 @@ api:
               type: string
               required: true
               description: 결제 주기 (MONTHLY, QUARTERLY, ANNUAL)
+            - name: description
+              type: string
+              required: false
+              description: 플랜 설명
+            - name: content
+              type: string
+              required: false
+              description: 플랜 상세 내용
 
     create-subscription:
-      url:
-      method:
+      url: /api/subscriptions/v1
+      method: POST
       description: 구독 생성 (빌링키 저장 + 구독 생성을 하나의 트랜잭션으로 처리)
       request:
         fields:
@@ -373,11 +393,11 @@ api:
               usage: 구독 관리 페이지 리다이렉트에 사용
 
     get-subscription:
-      url:
-      method:
+      url: /api/subscriptions/v1/{subscriptionId}
+      method: GET
       description: 구독 조회
       pathParams:
-        - name:
+        - name: subscriptionId
           description: 구독 ID
       response:
         body:
@@ -409,11 +429,11 @@ api:
               description: "현재 이용 기간 종료일 (ISO 8601 형식, 예: 2026-03-01T23:59:59)"
 
     update-subscription:
-      url:
-      method:
+      url: /api/subscriptions/v1/{subscriptionId}/cancel
+      method: PATCH
       description: 구독 상태 업데이트 (구독 해지)
       pathParams:
-        - name:
+        - name: subscriptionId
           description: 구독 ID
       request:
         fields:
@@ -428,17 +448,18 @@ api:
       response:
         body:
           fields:
-            - name: success
-              type: boolean
-              required: true
-              description: 성공 여부
             - name: subscriptionId
-              type: string
-              required: false
+              type: Long
+              required: true
+              description: 구독 ID
             - name: status
               type: string
-              required: false
+              required: true
               description: 변경된 구독 상태
+            - name: message
+              type: string
+              required: false
+              description: 처리 결과 메시지
 
     create-billing:
       url:
@@ -481,16 +502,33 @@ api:
               description: "청구 상태 (COMPLETED: 결제 완료, FAILED: 실패)"
 
     list-billing-history:
-      url:
-      method:
+      url: /api/subscriptions/v1/{subscriptionId}/billings
+      method: GET
       description: 청구 내역 조회
       pathParams:
-        - name:
+        - name: subscriptionId
           description: 구독 ID
       response:
         body:
-          fields:
-            - name: billings
-              type: array
+          type: array
+          items:
+            - name: billingId
+              type: Long
               required: true
-              description: "청구 내역 배열. 각 요소는 { billingId: string (필수), periodStart: string (필수, ISO 8601), periodEnd: string (필수, ISO 8601), amount: number (필수), status: string (필수, COMPLETED/FAILED/PENDING), paymentId: string (선택), attemptDate: string (선택, ISO 8601), failureMessage: string (선택) } 형태"
+              description: 청구 ID
+            - name: scheduledDate
+              type: string
+              required: true
+              description: "청구 예정일 (ISO 8601 형식)"
+            - name: amount
+              type: number
+              required: true
+              description: 청구 금액
+            - name: status
+              type: string
+              required: true
+              description: "청구 상태 (COMPLETED/FAILED/PENDING)"
+            - name: paymentId
+              type: string
+              required: false
+              description: 결제 건 ID
