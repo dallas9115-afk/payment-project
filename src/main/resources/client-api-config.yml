@@ -28,7 +28,7 @@ api:
     # 인증 (Authentication)
     # ========================================
     login:
-      url: /api/auth/v1/login
+      url: api/auth/v1/login/
       method: POST
       description: 사용자 로그인
       request:
@@ -88,14 +88,14 @@ api:
               description: 에러 메시지 (실패 시)
 
     get-current-user:
-      url:
-      method:
+      url: api/auth/v1/me
+      method: GET
       description: 현재 로그인한 사용자 정보 조회
       response:
         body:
           fields:
             - name: customerUid
-              type: string
+              type: number
               required: true
               description: PortOne 고객 고유 식별자 (서버에서 customerUid로 관리)
               usage: PortOne payment window customer.customerId
