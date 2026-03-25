@@ -32,10 +32,10 @@ public class PaymentAccessValidator {
 
     // 커스터머 본인주문인지 검증
     public void validateOrderOwnership(Authentication authentication, Order order) {
-        String authenticatedEmail = extractAuthenticatedEmail(authentication);
-        String orderOwnerEmail = order.getCustomer().getEmail();
+        Long authenticatedCustomerId = extractAuthenticatedCustomerId(authentication);
+        Long orderOwnerId = order.getCustomer().getId();
 
-        if (orderOwnerEmail == null || !orderOwnerEmail.equals(authenticatedEmail)) {
+        if (orderOwnerId == null || !orderOwnerId.equals(authenticatedCustomerId)) {
             throw new IllegalStateException("본인 주문에 대해서만 진행할 수 있습니다.");
         }
     }
@@ -60,40 +60,51 @@ public class PaymentAccessValidator {
     public Customer getAuthenticatedCustomer(Authentication authentication) {
         validateAuthenticated(authentication);
 
-        String authenticatedEmail = extractAuthenticatedEmail(authentication);
-        return customerRepository.findByEmail(authenticatedEmail).orElseThrow(
-                () -> new IllegalArgumentException("인증된 사용자를 찾을 수 없습니다. email=" + authenticatedEmail)
+        Long authenticatedCustomerId = extractAuthenticatedCustomerId(authentication);
+        return customerRepository.findById(authenticatedCustomerId).orElseThrow(
+                () -> new IllegalArgumentException("인증된 사용자를 찾을 수 없습니다. customerId=" + authenticatedCustomerId)
         );
     }
 
-    // 이메일 가져오기(O어스2 가능)
-    private String extractAuthenticatedEmail(Authentication authentication) {
+    private Long extractAuthenticatedCustomerId(Authentication authentication) {
         Object principal = authentication.getPrincipal();
+
+        if (principal instanceof Long customerId) {
+            return customerId;
+        }
 
         if (principal instanceof OAuth2User oAuth2User) {
             Object email = oAuth2User.getAttributes().get("email");
             if (email instanceof String emailValue && !emailValue.isBlank()) {
-                return emailValue;
+                return customerRepository.findByEmail(emailValue)
+                        .map(Customer::getId)
+                        .orElseThrow(() -> new IllegalArgumentException("인증된 사용자를 찾을 수 없습니다. email=" + emailValue));
             }
         }
 
         if (principal instanceof UserDetails userDetails) {
             String username = userDetails.getUsername();
             if (username != null && !username.isBlank()) {
-                return username;
+                return customerRepository.findByEmail(username)
+                        .map(Customer::getId)
+                        .orElseThrow(() -> new IllegalArgumentException("인증된 사용자를 찾을 수 없습니다. email=" + username));
             }
         }
 
         if (principal instanceof String email && !email.isBlank() && !"anonymousUser".equals(email)) {
-            return email;
+            return customerRepository.findByEmail(email)
+                    .map(Customer::getId)
+                    .orElseThrow(() -> new IllegalArgumentException("인증된 사용자를 찾을 수 없습니다. email=" + email));
         }
 
         String authenticationName = authentication.getName();
         if (authenticationName != null && !authenticationName.isBlank()
                 && !"anonymousUser".equals(authenticationName)) {
-            return authenticationName;
+            return customerRepository.findByEmail(authenticationName)
+                    .map(Customer::getId)
+                    .orElseThrow(() -> new IllegalArgumentException("인증된 사용자를 찾을 수 없습니다. email=" + authenticationName));
         }
 
-        throw new IllegalStateException("인증 사용자 이메일을 확인할 수 없습니다.");
+        throw new IllegalStateException("인증 사용자 식별자를 확인할 수 없습니다.");
     }
 }
