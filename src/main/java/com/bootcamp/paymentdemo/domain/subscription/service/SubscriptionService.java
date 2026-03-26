@@ -79,51 +79,51 @@ public class SubscriptionService {
 
     @Transactional //이 메서드가 끝나면 DB 커넥션을 즉시 반납
     public BillingContext savePendingSubscription(Long customerId, Long planId, SubscriptionRequest request) {
-       try {
-           // [멱등성 체크 추가]
-           // 오늘 날짜로 이미 'READY'나 'SUCCESS'인 청구가 있는지 확인합니다.
-           // (첫 결제는 보통 '오늘'이 결제 예정일이 됩니다)
-           LocalDateTime today = LocalDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.DAYS);
+        try {
+            // [멱등성 체크 추가]
+            // 오늘 날짜로 이미 'READY'나 'SUCCESS'인 청구가 있는지 확인합니다.
+            // (첫 결제는 보통 '오늘'이 결제 예정일이 됩니다)
+            LocalDateTime today = LocalDateTime.now().truncatedTo(java.time.temporal.ChronoUnit.DAYS);
 
-           // 만약 이미 진행 중인 건이 있다면 새로 만들지 않고 기존 ID를 돌려주거나 예외를 던집니다.
-           // 여기서는 안전하게 예외를 던져서 중복 진행을 막는 방식을 추천해요.
-           boolean alreadyExists = billingRepository.existsByCustomerAndPlanAndDate(
-                   customerId, planId, today);
+            // 만약 이미 진행 중인 건이 있다면 새로 만들지 않고 기존 ID를 돌려주거나 예외를 던집니다.
+            // 여기서는 안전하게 예외를 던져서 중복 진행을 막는 방식을 추천해요.
+            boolean alreadyExists = billingRepository.existsByCustomerAndPlanAndDate(
+                    customerId, planId, today);
 
-           if (alreadyExists) {
-               log.warn("이미 오늘 해당 플랜에 대한 결제 시도가 있었습니다. customerId={}", customerId);
-               throw new IllegalStateException("이미 결제가 진행 중인 요청입니다.");
-           }
-           // 1. 플랜 조회
-           SubscriptionPlan plan = subscriptionPlanRepository.findById(planId)
-                   .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 플랜입니다."));
+            if (alreadyExists) {
+                log.warn("이미 오늘 해당 플랜에 대한 결제 시도가 있었습니다. customerId={}", customerId);
+                throw new IllegalStateException("이미 결제가 진행 중인 요청입니다.");
+            }
+            // 1. 플랜 조회
+            SubscriptionPlan plan = subscriptionPlanRepository.findById(planId)
+                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 플랜입니다."));
 
-           Customer customer = customerRepository.findById(customerId)
-                   .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+            Customer customer = customerRepository.findById(customerId)
+                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
 
-           // 2. 결제 수단(카드 정보) 저장
-           // 기존에 설정된 기본 카드가 있다면 해제 (정합성)
-           paymentMethodRepository.findByCustomerIdAndIsDefaultTrue(customerId)
-                   .ifPresent(PaymentMethod::unsetDefault); // 👈 이제 에러 없이 작동합니다!
+            // 2. 결제 수단(카드 정보) 저장
+            // 기존에 설정된 기본 카드가 있다면 해제 (정합성)
+            paymentMethodRepository.findByCustomerIdAndIsDefaultTrue(customerId)
+                    .ifPresent(PaymentMethod::unsetDefault); // 👈 이제 에러 없이 작동합니다!
 
             // create 메서드 인자인 PaymentMethodCreateRequest를 만들어줘야 합니다.
-           PaymentMethodCreateRequest methodRequest = new PaymentMethodCreateRequest(
-                   request.getBillingKey(),
-                   request.getCustomerUid(),
-                   PgProvider.TOSS_PAYMENTS, // Enum 타입 확인 필요
-                   true
-           );
+            PaymentMethodCreateRequest methodRequest = new PaymentMethodCreateRequest(
+                    request.getBillingKey(),
+                    request.getCustomerUid(),
+                    PgProvider.TOSS_PAYMENTS, // Enum 타입 확인 필요
+                    true
+            );
 
-           PaymentMethod method = PaymentMethod.create(customer, methodRequest);
-           paymentMethodRepository.save(method);
-           // 3. 구독 정보 생성 (PENDING 상태)
+            PaymentMethod method = PaymentMethod.create(customer, methodRequest);
+            paymentMethodRepository.save(method);
+            // 3. 구독 정보 생성 (PENDING 상태)
 
-           Subscription subscription = Subscription.builder()
-                   .customer(customer)
-                   .plan(plan)
-                   .paymentMethod(method)
-                   .status(SubscriptionStatus.PENDING)
-                   .build();
+            Subscription subscription = Subscription.builder()
+                    .customer(customer)
+                    .plan(plan)
+                    .paymentMethod(method)
+                    .status(SubscriptionStatus.PENDING)
+                    .build();
 
 //           // [디테일 추가] 체험 기간이 있다면 여기서 바로 TRIALING으로 세팅
 //           if (plan.getTrialPeriodDays() > 0) {
@@ -133,41 +133,41 @@ public class SubscriptionService {
 //               subscription.setNextBillingDate(LocalDateTime.now());
 //           }
 
-           subscriptionRepository.save(subscription);
+            subscriptionRepository.save(subscription);
 
-           // 4. 구독 청구(Billing) 로그 생성 (READY 상태)
-           // 💡 피드백 반영: 중복 결제 방지를 위해 여기서 멱등성 체크를 먼저 해도 좋습니다.
-           // 4. Billing 저장
-           SubscriptionBilling savedBilling = billingRepository.save(
-                   SubscriptionBilling.builder()
-                           .subscription(subscription)
-                           .amount(plan.getPrice())
-                           .scheduledDate(today)
-                           .status(BillingStatus.READY)
-                           .build());
+            // 4. 구독 청구(Billing) 로그 생성 (READY 상태)
+            // 💡 피드백 반영: 중복 결제 방지를 위해 여기서 멱등성 체크를 먼저 해도 좋습니다.
+            // 4. Billing 저장
+            SubscriptionBilling savedBilling = billingRepository.save(
+                    SubscriptionBilling.builder()
+                            .subscription(subscription)
+                            .amount(plan.getPrice())
+                            .scheduledDate(today)
+                            .status(BillingStatus.READY)
+                            .build());
 
 
-           // [개선] DB 조회 없이 방금 만든 객체들에서 바로 꺼내서 반환!
-           return new BillingContext(
-                   savedBilling.getId(),      // 여기서 사용!
-                   subscription.getId(),
-                   method.getBillingKey(),
-                   plan.getPrice(),
-                   customerId
-           );
-       } catch (DataIntegrityViolationException e) {
-           // [2차 방어] DB 유니크 인덱스에 걸렸을 때 (레이스 컨디션 발생 시)
-           log.warn("DB 수준에서 중복 결제 시도 차단됨 (Unique Constraint): {}", e.getMessage());
-           throw new IllegalStateException("이미 결제가 진행 중인 요청입니다. 잠시 후 다시 시도해주세요.");
-       }
+            // [개선] DB 조회 없이 방금 만든 객체들에서 바로 꺼내서 반환!
+            return new BillingContext(
+                    savedBilling.getId(),      // 여기서 사용!
+                    subscription.getId(),
+                    method.getBillingKey(),
+                    plan.getPrice(),
+                    customerId
+            );
+        } catch (DataIntegrityViolationException e) {
+            // [2차 방어] DB 유니크 인덱스에 걸렸을 때 (레이스 컨디션 발생 시)
+            log.warn("DB 수준에서 중복 결제 시도 차단됨 (Unique Constraint): {}", e.getMessage());
+            throw new IllegalStateException("이미 결제가 진행 중인 요청입니다. 잠시 후 다시 시도해주세요.");
+        }
     }
 
     @Transactional // 3번 단계를 위한 짧은 트랜잭션
     public void updatePaymentResult(Long subId, Long billingId, boolean isSuccess, String paymentId) {
         Subscription sub = subscriptionRepository.findById(subId)
-                .orElseThrow(()-> new IllegalArgumentException("구독 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("구독 정보를 찾을 수 없습니다."));
         SubscriptionBilling billing = billingRepository.findById(billingId)
-                .orElseThrow(()-> new IllegalArgumentException("결제 로그를 찾을 수 없습니다."));
+                .orElseThrow(() -> new IllegalArgumentException("결제 로그를 찾을 수 없습니다."));
 
         if (isSuccess) {
             billing.markRequested(paymentId); // 상태를 REQUESTED로 변경 (웹훅 대기)
@@ -179,7 +179,6 @@ public class SubscriptionService {
             log.warn("결제 요청 실패: billingId={}, paymentId={}", billingId, paymentId);
         }
     }
-
 
 
     @Transactional
@@ -323,51 +322,51 @@ public class SubscriptionService {
     }
 
 
-     /**
-      * [조회 서비스] 보안 체크 + DTO 변환까지 완료해서 반환
-      */
-        @Transactional(readOnly = true)
-        public SubscriptionResponse getSubscriptionDto(Long customerId, Long subscriptionId) {
-            Subscription sub = subscriptionRepository.findById(subscriptionId)
-                    .orElseThrow(() -> new IllegalArgumentException("구독 내용 없음."));
+    /**
+     * [조회 서비스] 보안 체크 + DTO 변환까지 완료해서 반환
+     */
+    @Transactional(readOnly = true)
+    public SubscriptionResponse getSubscriptionDto(Long customerId, Long subscriptionId) {
+        Subscription sub = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("구독 내용 없음."));
 
-            // [피드백 1] 보안 체크: 내 구독인지 확인
-            validateOwner(customerId, sub.getCustomer().getId());
+        // [피드백 1] 보안 체크: 내 구독인지 확인
+        validateOwner(customerId, sub.getCustomer().getId());
 
-            // [피드백 3] Service에서 DTO로 변환하여 반환
-            return SubscriptionResponse.fromEntity(sub);
+        // [피드백 3] Service에서 DTO로 변환하여 반환
+        return SubscriptionResponse.fromEntity(sub);
+    }
+
+    /**
+     * [청구 내역 서비스] 보안 체크 + DTO 리스트 변환
+     */
+    @Transactional(readOnly = true)
+    public List<BillingHistoryResponse> getBillingHistoryDto(Long customerId, Long subscriptionId) {
+        Subscription sub = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("구독 내용 없음"));
+
+        // 보안 체크
+        validateOwner(customerId, sub.getCustomer().getId());
+
+        List<SubscriptionBilling> history = billingRepository.findAllBySubscriptionIdOrderByScheduledDateDesc(subscriptionId);
+
+        return history.stream()
+                .map(BillingHistoryResponse::fromEntity)
+                .toList();
+    }
+
+    // 공통 보안 체크 로직
+    private void validateOwner(Long requesterId, Long ownerId) {
+        // 여기서 equals를 써서 두 ID가 같은지 비교합니다.
+        if (!requesterId.equals(ownerId)) {
+            throw new AccessDeniedException("해당 데이터에 접근할 권한이 없습니다.");
         }
-
-        /**
-         * [청구 내역 서비스] 보안 체크 + DTO 리스트 변환
-         */
-        @Transactional(readOnly = true)
-        public List<BillingHistoryResponse> getBillingHistoryDto(Long customerId, Long subscriptionId) {
-            Subscription sub = subscriptionRepository.findById(subscriptionId)
-                    .orElseThrow(() -> new IllegalArgumentException("구독 내용 없음"));
-
-            // 보안 체크
-            validateOwner(customerId, sub.getCustomer().getId());
-
-            List<SubscriptionBilling> history = billingRepository.findAllBySubscriptionIdOrderByScheduledDateDesc(subscriptionId);
-
-            return history.stream()
-                    .map(BillingHistoryResponse::fromEntity)
-                    .toList();
-        }
-
-        // 공통 보안 체크 로직
-        private void validateOwner(Long requesterId, Long ownerId) {
-            // 여기서 equals를 써서 두 ID가 같은지 비교합니다.
-            if (!requesterId.equals(ownerId)) {
-                throw new AccessDeniedException("해당 데이터에 접근할 권한이 없습니다.");
-            }
-        }
-
+    }
 
 
     /**
      * 활성화된 모든 구독 플랜 목록을 조회합니다.
+     *
      * @return SubscriptionPlan 엔티티 리스트
      */
     @Transactional(readOnly = true) // 조회 전용이므로 성능 최적화!
@@ -400,9 +399,7 @@ public class SubscriptionService {
     }
 
 
-
-
-}
+//}
 
 
 //    /**
@@ -424,7 +421,258 @@ public class SubscriptionService {
 //        }
 //    }
 
+    // 유예 기간
+    private static final int PAST_DUE_DAYS = 7;
+
+    private final SubscriptionBillingRepository subscriptionBillingRepository;
+
+    // 구독 생성 -> 년간, 월간 -> 결제 성공 -> ACTIVE(구독 활성)
+    @Transactional
+    public void activateSubscription(Long subscriptionId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("구독이 없습니다. id는" + subscriptionId));
+
+        if (subscription.getStatus() == SubscriptionStatus.ENDED) {
+            throw new IllegalStateException("종료된 구독은 활성화할 수 없습니다.");
+        }
+
+        if (subscription.getStatus() == SubscriptionStatus.CANCELED) {
+            throw new IllegalStateException("해지된 구독은 다시 활성화할 수 없습니다.");
+        }
+        subscription.activate();
+    }
+
+    // 구독 생성 -> 년간, 월간 -> 결제 실패 -> PAST_DUE(결제 연체)
+//    @Transactional
+//    public void markPastDueAfterCreate(Long subscriptionId) {
+//        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+//                .orElseThrow(() -> new IllegalArgumentException("구독이 없습니다. id는" + subscriptionId));
+//
+//        if (subscription.getStatus() != SubscriptionStatus.ACTIVE) {
+//            throw new IllegalStateException("활성 상태 구독만 연체로 변경할 수 있습니다. 현재상태는" + subscription.getStatus());
+//        }
+//
+//        // PAST_DUE(결제 연체) 상태 변화.
+//        subscription.markPastDue();
+//    }
+//
+//    // PAST_DUE(결제 연체) -> 기간 7일 이내 잔금 지불 함 -> 구독 활성
+//    @Transactional
+//    public void recoverPastDueSubscription(Long subscriptionId) {
+//        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+//                .orElseThrow(() -> new IllegalArgumentException("구독이 없습니다. id는" + subscriptionId));
+//
+//        if (subscription.getStatus() != SubscriptionStatus.PAST_DUE) {
+//            throw new IllegalStateException("연체 상태 구독만 복구할 수 있습니다. 현재상태는" + subscription.getStatus());
+//        }
+//
+//        if (isPastDueGraceExpired(subscription)) {
+//            throw new IllegalStateException("연체 유예 기간이 지나 복구할 수 없습니다.");
+//        }
+//
+//        subscription.activate();
+//    }
+//
+//    // PAST_DUE(결제 연체) -> 기간 7일 이내 잔금 지불 안함 -> BAN(사용자 차단)
+//    @Transactional
+//    public void endPastDueSubscription(Long subscriptionId) {
+//        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+//                .orElseThrow(() -> new IllegalArgumentException("구독이 없습니다. id는" + subscriptionId));
+//
+//        if (subscription.getStatus() != SubscriptionStatus.PAST_DUE) {
+//            throw new IllegalStateException("연체 상태 구독만 종료할 수 있습니다. 현재상태는" + subscription.getStatus());
+//        }
+//
+//        if (!isPastDueGraceExpired(subscription)) {
+//            throw new IllegalStateException("아직 연체 유예 기간이 남아 있습니다.");
+//        }
+//
+//        subscription.ban();
+//    }
+//
+//    // 구독 활성 -> 구독 갱신 -> 년간, 월간 두개 중 골라서 기간 연장
+//    @Transactional
+//    public void renewSubscription(Long subscriptionId) {
+//        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+//                .orElseThrow(() -> new IllegalArgumentException("구독이 없습니다. i는" + subscriptionId));
+//
+//        if (subscription.getStatus() != SubscriptionStatus.ACTIVE) {
+//            throw new IllegalStateException("활성 구독만 갱신할 수 있습니다. 현재상태는" + subscription.getStatus());
+//        }
+//
+//        // 구독 갱신
+//        subscription.renew();
+//    }
+//
+//    // 구독 활성 -> 취소 요청 -> CANCELED(해지됨)
+//    @Transactional
+//    public void cancelSubscription(Long subscriptionId) {
+//        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+//                .orElseThrow(() -> new IllegalArgumentException("구독이 없습니다. id는" + subscriptionId));
+//
+//        if (subscription.getStatus() == SubscriptionStatus.ENDED) {
+//            throw new IllegalStateException("이미 종료된 구독입니다.");
+//        }
+//
+//        if (subscription.getStatus() == SubscriptionStatus.CANCELED) {
+//            return;
+//        }
+//
+//        if (subscription.getStatus() != SubscriptionStatus.ACTIVE
+//                && subscription.getStatus() != SubscriptionStatus.PAST_DUE) {
+//            throw new IllegalStateException("해지할 수 없는 구독 상태입니다. 현재상태는" + subscription.getStatus());
+//        }
+//
+//        subscription.cancel();
+//    }
+//
+//    // CANCELED(해지됨) -> 구독 기간 종료 -> ENDED(이용 종료)
+//    @Transactional
+//    public void endCanceledSubscription(Long subscriptionId) {
+//        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+//                .orElseThrow(() -> new IllegalArgumentException("구독이 없습니다. id는" + subscriptionId));
+//
+//        if (subscription.getStatus() != SubscriptionStatus.CANCELED) {
+//            throw new IllegalStateException("해지된 구독만 종료할 수 있습니다. 현재상태는" + subscription.getStatus());
+//        }
+//
+//        if (subscription.getCurrentPeriodEnd().isAfter(LocalDateTime.now())) {
+//            throw new IllegalStateException("아직 남은 구독 기간이 있습니다.");
+//        }
+//
+//        subscription.end();
+//    }
+//
+//    // 구독 활성 -> 구독 기간 종료 -> 잔여일 없음, 잔금 없음 -> ENDED(이용 종료)
+//    @Transactional
+//    public void endSubscriptionWithoutRemainingDays(Long subscriptionId) {
+//        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+//                .orElseThrow(() -> new IllegalArgumentException("구독이 없습니다. id=" + subscriptionId));
+//
+//        long remainingDays = calculateRemainingDays(subscription);
+//        long settlementAmount = calculateSettlementAmount(subscription);
+//
+//        if (remainingDays > 0) {
+//            throw new IllegalStateException("아직 남은 기간이 있어 종료할 수 없습니다. 잔여일은 " + remainingDays+" 입니다.");
+//        }
+//
+//        if (settlementAmount > 0) {
+//            throw new IllegalStateException("잔금이 남아 있어 종료할 수 없습니다. 잔금은 " + settlementAmount+" 입니다.");
+//        }
+//
+//        // 이용 종료
+//        subscription.end();
+//    }
+//
+//    // 구독 활성 -> 구독 기간 종료 -> 잔여일 있음, 잔금 지불 O -> CANCELED(해지됨)
+//    @Transactional
+//    public void cancelSubscriptionAfterSettlementPaid(Long subscriptionId) {
+//        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+//                .orElseThrow(() -> new IllegalArgumentException("구독이 없습니다. id는" + subscriptionId));
+//
+//        long remainingDays = calculateRemainingDays(subscription);
+//        long settlementAmount = calculateSettlementAmount(subscription);
+//
+//        if (remainingDays <= 0) {
+//            throw new IllegalStateException("남은 기간이 없는 구독은 잔금 정산 해지가 필요하지 않습니다.");
+//        }
+//
+//        if (settlementAmount <= 0) {
+//            throw new IllegalStateException("지불할 잔금이 없습니다.");
+//        }
+//
+//        subscriptionBillingRepository.save(
+//                SubscriptionBilling.success(
+//                        subscription,
+//                        settlementAmount,
+//                        LocalDateTime.now(),
+//                        LocalDateTime.now(),
+//                        subscription.getCurrentPeriodEnd()
+//                )
+//        );
+//
+//        subscription.cancel();
+//    }
+//
+//    // 구독 활성 -> 구독 기간 종료 -> 잔여일 있음, 잔금 지불 X -> BAN(사용자 차단)
+//    @Transactional
+//    public void markPastDueAfterSettlementFailure(Long subscriptionId) {
+//        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+//                .orElseThrow(() -> new IllegalArgumentException("구독이 없습니다. id는" + subscriptionId));
+//
+//        long remainingDays = calculateRemainingDays(subscription);
+//        long settlementAmount = calculateSettlementAmount(subscription);
+//
+//        if (remainingDays <= 0) {
+//            throw new IllegalStateException("남은 기간이 없는 구독은 잔금 미납 처리 대상이 아닙니다.");
+//        }
+//
+//        if (settlementAmount <= 0) {
+//            throw new IllegalStateException("지불할 잔금이 없습니다.");
+//        }
+//
+//        subscriptionBillingRepository.save(
+//                SubscriptionBilling.fail(
+//                        subscription,
+//                        settlementAmount,
+//                        LocalDateTime.now(),
+//                        LocalDateTime.now(),
+//                        subscription.getCurrentPeriodEnd(),
+//                        "잔여 기간 정산 금액 미납입니다.."
+//                )
+//        );
+//
+//        // 바로 사용자를 벤으로 처리.
+//        subscription.ban();
+//    }
+//
+//    // 유예 기간 판단.
+//    // 현재 구독 주기의 종료 시각을 가져온다.
+//    // 유예 기간 7일 추가
+//    // plusDays(7) 따라서 +7이 된다.
+//    // 그리고 isBefore은
+//    //  유예기간 만료 시점 < 지금 이면 true
+//    // 아직 안 지났으면 false
+//    private boolean isPastDueGraceExpired(Subscription subscription) {
+//        return subscription.getCurrentPeriodEnd()
+//                .plusDays(PAST_DUE_DAYS)
+//                .isBefore(LocalDateTime.now());
+//    }
+//
+//    // subscription.getCurrentPeriodEnd() 종료 시각을 가져온다.
+//    // .isAfter(LocalDateTime.now()) currentPeriodEnd가 지금보다 이후인지 확인하는 로직
+//    // 이후가 아니라면 현재와 같거나, 이미 지난 일.
+//    private long calculateRemainingDays(Subscription subscription) {
+//        if (!subscription.getCurrentPeriodEnd().isAfter(LocalDateTime.now())) {
+//            // 구독 종료일이 지났으면, 음수 일수 같은 걸 반환하지 않고 그냥 0으로 처리한다.
+//            return 0L;
+//        }
+//
+//        // 아직 남아 있으면 일수 계산
+//        // between(현재시간, 종료시간) 남은 일수가 계산
+//        // 즉, between(3월 10일 12:00, 3월 15일 12:00) == 5가 된다. 그러면 5를 반환한다.
+//        return ChronoUnit.DAYS.between(LocalDateTime.now(), subscription.getCurrentPeriodEnd());
+//    }
+//
+//    // 구독을 중간에 해지했을 때 정산금을 계산하는 로직이다.
+//    private long calculateSettlementAmount(Subscription subscription) {
+//        // 남은 일수 계산
+//        long remainingDays = calculateRemainingDays(subscription);
+//        if (remainingDays <= 0) {
+//            return 0L;
+//        }
+//
+//        // 0이면 에러가 발생해서 1L로 최소값 보장.
+//        long totalDays = Math.max(1L, ChronoUnit.DAYS.between(
+//                subscription.getCurrentPeriodStart(),
+//                subscription.getCurrentPeriodEnd()
+//        ));
+//
+//        return subscription.getPlan().getPrice() * remainingDays / totalDays;
+//    }
+//
+//}
 
 
-
+}
 
