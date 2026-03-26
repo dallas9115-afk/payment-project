@@ -474,11 +474,8 @@
 
                 updatePaymentStep(step1, 'success', `결제 완료 (ID: ${paymentResult.paymentId})`);
 
-                // 2단계: 결제 확정 API 호출 (자동)
+                // 2단계: SDK helper 내부에서 결제 확정까지 완료됨
                 step2 = addPaymentStep('결제 확정 중...', 'loading');
-
-                await confirmPaymentTemplate(paymentResult.paymentId);
-
                 updatePaymentStep(step2, 'success', '결제 확정 완료');
                 showNotification('결제가 완료되었습니다! (포인트: ' + points.toLocaleString() + 'P 사용)', 'success');
 

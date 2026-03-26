@@ -177,6 +177,24 @@ async function openPortOnePaymentWithPoints(paymentData) {
         const finalAmount = Math.max(0, paymentData.totalAmount - pointsToUse);
         console.log(`포인트 차감: ${paymentData.totalAmount}원 - ${pointsToUse}P = ${finalAmount}원`);
 
+        if (finalAmount === 0) {
+            console.log('2단계: 0원 결제이므로 PortOne SDK를 건너뛰고 서버 확정만 수행합니다...');
+            const confirmResult = await confirmPaymentTemplate(serverPaymentId);
+
+            displaySuccess({
+                paymentId: serverPaymentId,
+                pointsUsed: pointsToUse,
+                message: '0원 포인트 결제 확정 완료',
+                confirmResult: confirmResult
+            });
+
+            return {
+                paymentId: serverPaymentId,
+                txId: null,
+                confirmResult: confirmResult
+            };
+        }
+
         // 2단계: PortOne 결제창 열기
         console.log('2단계: PortOne 결제창 열기...');
         const paymentRequest = {
@@ -235,7 +253,11 @@ async function openPortOnePaymentWithPoints(paymentData) {
                 message: '결제 확정 완료',
                 confirmResult: confirmResult
             });
-            return response;
+            return {
+                paymentId: serverPaymentId,
+                txId: response.txId,
+                confirmResult: confirmResult
+            };
         }
     } catch (error) {
         console.error('결제 오류 (포인트):', error);
