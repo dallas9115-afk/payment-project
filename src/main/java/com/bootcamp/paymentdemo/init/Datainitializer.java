@@ -20,6 +20,7 @@ import org.springframework.stereotype.Component;
 public class Datainitializer implements CommandLineRunner {
 
     private static final String TEST_EMAIL = "admin@test.com";
+    private static final Long ADMIN_INIT_POINT = 5000000L;
 
     private final ProductRepository productRepository;
     private final CustomerRepository customerRepository;
@@ -35,6 +36,15 @@ public class Datainitializer implements CommandLineRunner {
 
     private void seedTestCustomer() {
         if (customerRepository.existsByEmail(TEST_EMAIL)) {
+            Customer customer = customerRepository.findByEmail(TEST_EMAIL)
+                    .orElseThrow(() -> new IllegalArgumentException("관리자 계정을 찾을 수 없습니다."));
+
+            Long currentPoint = customer.getCurrentPoint();
+            if (currentPoint < ADMIN_INIT_POINT) {
+                customer.addPoint(ADMIN_INIT_POINT - currentPoint);
+            } else if (currentPoint > ADMIN_INIT_POINT) {
+                customer.deductPoint(currentPoint - ADMIN_INIT_POINT);
+            }
             return;
         }
 
@@ -45,7 +55,7 @@ public class Datainitializer implements CommandLineRunner {
                         .password(passwordEncoder.encode("admin1234"))
                         .phoneNumber("010-1234-5678")
                         .rank(Rank.NORMAL)
-                        .currentPoint(50000L)
+                        .currentPoint(ADMIN_INIT_POINT)
                         .build()
         );
     }

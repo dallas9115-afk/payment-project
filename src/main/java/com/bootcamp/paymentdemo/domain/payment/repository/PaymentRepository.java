@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,7 +30,11 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     );
 
 
-    // 포인트 조회를 위해서 사용.
-    Optional<Payment> findByOrder(Order order);
+    Optional<Payment> findTopByOrderOrderByCreatedAtDesc(Order order);
+
+    Optional<Payment> findTopByOrderAndStatusInOrderByCreatedAtDesc(
+            Order order,
+            Collection<PaymentStatus> statuses
+    );
 
 }

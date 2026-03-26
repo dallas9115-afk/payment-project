@@ -2,11 +2,13 @@ package com.bootcamp.paymentdemo.domain.payment.service;
 
 import com.bootcamp.paymentdemo.config.DistributedLock;
 import com.bootcamp.paymentdemo.domain.order.entity.Order;
+import com.bootcamp.paymentdemo.domain.order.entity.OrderStatus;
 import com.bootcamp.paymentdemo.domain.order.repository.OrderRepository;
 import com.bootcamp.paymentdemo.domain.payment.dto.Request.PaymentCreateReadyRequest;
 import com.bootcamp.paymentdemo.domain.payment.dto.Request.PortOneWebhookRequest;
 import com.bootcamp.paymentdemo.domain.payment.dto.Response.*;
 import com.bootcamp.paymentdemo.domain.payment.entity.Payment;
+import com.bootcamp.paymentdemo.domain.payment.enums.PaymentStatus;
 import com.bootcamp.paymentdemo.domain.payment.repository.PaymentRepository;
 import com.bootcamp.paymentdemo.global.error.PortOneApiException;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -64,6 +66,30 @@ public class PaymentService {
         }
 
         paymentAccessValidator.validateOrderOwnership(authentication, order);
+
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new IllegalStateException("결제를 시작할 수 없는 주문 상태입니다. status=" + order.getStatus());
+        }
+
+        Payment existingReadyPayment = paymentRepository
+                .findTopByOrderAndStatusInOrderByCreatedAtDesc(order, List.of(PaymentStatus.READY))
+                .orElse(null);
+
+        if (existingReadyPayment != null) {
+            if (existingReadyPayment.getExpiresAt() != null
+                    && existingReadyPayment.getExpiresAt().isBefore(LocalDateTime.now())) {
+                existingReadyPayment.expire();
+            } else if (existingReadyPayment.getUsePoint().equals(point)) {
+                log.info("기존 READY 결제를 재사용합니다. orderId={}, paymentId={}",
+                        order.getOrderId(), existingReadyPayment.getPaymentId());
+                return PaymentCreateReadyResponse.checkoutReady(existingReadyPayment);
+            } else {
+                throw new IllegalStateException(
+                        "이미 진행 중인 결제 요청이 있습니다. 잠시 후 다시 시도해주세요. paymentId="
+                                + existingReadyPayment.getPaymentId()
+                );
+            }
+        }
 
         String paymentId = generatePaymentId();
         Payment payment = Payment.of(order, expectedAmount, paymentId,point);
