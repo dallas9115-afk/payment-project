@@ -1,4 +1,4 @@
-package com.bootcamp.paymentdemo.domain.subscription2.dto.response;
+package com.bootcamp.paymentdemo.domain.subscription.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PlanResponse2 {
+public class PlanResponse {
     private String planId;      // YAML의 planId: "1", "2" 등 (String 권장)
     private String name;        // 플랜 이름: "베이직", "스탠다드"
     private Long amount;        // YAML의 amount: 가격 (우리 엔티티의 price)

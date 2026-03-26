@@ -1,4 +1,4 @@
-package com.bootcamp.paymentdemo.domain.subscription2.dto.request;
+package com.bootcamp.paymentdemo.domain.subscription.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.Getter;

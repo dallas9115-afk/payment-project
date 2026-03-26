@@ -250,7 +250,7 @@
             }
 
             try {
-                const result = await makeApiRequest('list-billing-history', {
+                const billings = await makeApiRequest('list-billing-history', {
                     pathParams: subscriptionId
                 });
 
@@ -258,8 +258,8 @@
                 const container = document.getElementById('billing-history-container');
                 const listDiv = document.getElementById('billing-history-list');
 
-                if (result.billings && result.billings.length > 0) {
-                    listDiv.innerHTML = result.billings.map(billing => {
+                if (billings && billings.length > 0) {
+                    listDiv.innerHTML = billings.map(billing => {
                         // 날짜 포맷팅 (YYYY-MM-DD만 표시)
                         const periodStart = billing.periodStart ? billing.periodStart.substring(0, 10) : '';
                         const periodEnd = billing.periodEnd ? billing.periodEnd.substring(0, 10) : '';
