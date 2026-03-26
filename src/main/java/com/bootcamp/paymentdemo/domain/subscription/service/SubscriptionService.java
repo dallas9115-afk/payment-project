@@ -44,7 +44,7 @@ public class SubscriptionService {
     private final PortOneApiClient portOneApiClient;
     private final CustomerRepository customerRepository;
 
-    public Long initiateSubscription(Long customerId, String planId, SubscriptionRequest request) {
+    public Long initiateSubscription(Long customerId, Long planId, SubscriptionRequest request) {
         log.info("[구독프로세스 1단계] 시작 - customerId: {}, planId: {}", customerId, planId);
 
         // 1. DB 저장 단계 (트랜잭션 1)
@@ -89,7 +89,7 @@ public class SubscriptionService {
     }
 
     @Transactional //이 메서드가 끝나면 DB 커넥션을 즉시 반납
-    public BillingContext savePendingSubscription(Long customerId, String planId, SubscriptionRequest request) {
+    public BillingContext savePendingSubscription(Long customerId, Long planId, SubscriptionRequest request) {
         try {
             // [멱등성 체크 추가]
             // 오늘 날짜로 이미 'READY'나 'SUCCESS'인 청구가 있는지 확인합니다.
@@ -112,10 +112,8 @@ public class SubscriptionService {
                 throw new IllegalStateException("이미 결제가 진행 중인 요청입니다.");
             }
 
-            Long valueOfPlanId= Long.parseLong(planId);
-
             // 1. 플랜 조회
-            SubscriptionPlan plan = subscriptionPlanRepository.findById(valueOfPlanId)
+            SubscriptionPlan plan = subscriptionPlanRepository.findById(planId)
                     .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 플랜입니다."));
 
             log.info("플랜 조회 성공 - planId={}, planName={}, price={}",
