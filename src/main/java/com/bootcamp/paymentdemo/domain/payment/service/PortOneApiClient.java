@@ -110,7 +110,7 @@ public class PortOneApiClient {
         Map<String, Object> body = buildCancelRequestBody(reason, amount);
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
 
-        return executeCancelRequest(paymentId, url, entity);
+        return executeCancelRequest(paymentId, reason, amount, url, entity);
     }
 
     // 멱등키 헤더
@@ -137,10 +137,18 @@ public class PortOneApiClient {
 
     private PortOnePaymentInfoResponse executeCancelRequest(
             String paymentId,
+            String reason,
+            Long amount,
             String url,
             HttpEntity<Map<String, Object>> entity
     ) {
         try {
+            log.info("포트원 결제 취소 요청 - paymentId={}, amount={}, reason={}, storeIdMask={}, secretMask={}",
+                    paymentId,
+                    amount,
+                    reason,
+                    mask(portOneProperties.getStore().getId()),
+                    mask(portOneProperties.getApi().getSecret()));
             ResponseEntity<PortOnePaymentInfoResponse> response = restTemplate.exchange(
                     url,
                     HttpMethod.POST,
@@ -163,8 +171,24 @@ public class PortOneApiClient {
             throw new PortOneApiException("포트원 결제 취소 네트워크 오류", true);
         } catch (RestClientResponseException e) {
             int statusCode = e.getStatusCode().value();
+            String responseBody = e.getResponseBodyAsString();
             log.error("포트원 결제 취소 HTTP 오류 - paymentId={}, status={}, body={}",
-                    paymentId, statusCode, e.getResponseBodyAsString(), e);
+                    paymentId, statusCode, responseBody, e);
+
+            if (statusCode == 400) {
+                PortOnePaymentInfoResponse paymentInfo = tryResolveCancelledPayment(paymentId);
+                log.warn("포트원 결제 취소 400 상세 - paymentId={}, amount={}, responseBody={}, recheckStatus={}",
+                        paymentId,
+                        amount,
+                        responseBody,
+                        paymentInfo == null ? "<recheck-failed>" : paymentInfo.getStatus());
+                if (paymentInfo != null && paymentInfo.isCancelledStatus()) {
+                    log.warn("포트원 취소 응답은 400이지만 이미 취소 완료 상태입니다. paymentId={}, status={}",
+                            paymentId, paymentInfo.getStatus());
+                    return paymentInfo;
+                }
+            }
+
             boolean retryable = statusCode >= 500 || statusCode == 429;
             throw new PortOneApiException("포트원 결제 취소 HTTP 오류(" + statusCode + ")", retryable);
         } catch (PortOneApiException e) {
@@ -228,6 +252,15 @@ public class PortOneApiClient {
             return idempotencyKey;
         }
         return "\"" + idempotencyKey + "\"";
+    }
+
+    private PortOnePaymentInfoResponse tryResolveCancelledPayment(String paymentId) {
+        try {
+            return getPaymentInfo(paymentId, buildVerifyIdempotencyKey(paymentId));
+        } catch (Exception e) {
+            log.warn("포트원 취소 후 상태 재조회 실패 - paymentId={}, message={}", paymentId, e.getMessage());
+            return null;
+        }
     }
 
     private String mask(String value) {
