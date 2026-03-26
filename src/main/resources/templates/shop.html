@@ -310,7 +310,8 @@
 
             try {
                 const result = await makeApiRequest('create-order', {
-                    body: orderData
+                    body: orderData,
+                    pathParams: { customerId: currentUser.customerUid }
                 });
 
                 // YML 스키마 기반 자동 검증

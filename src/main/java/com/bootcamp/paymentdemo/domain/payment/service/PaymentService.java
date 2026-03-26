@@ -40,9 +40,6 @@ public class PaymentService {
     private final PaymentMethodRepository paymentMethodRepository;
     private final SubscriptionRepository subscriptionRepository;
 
-    // 결제 ID 에 넣을 날짜 포맷
-    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-
 
 
     /**
@@ -235,9 +232,8 @@ public class PaymentService {
      * 결제 ID 생성기
      */
     public static String generatePaymentId() {
-        String timestamp = LocalDateTime.now().format(FORMATTER);
         String random = UUID.randomUUID().toString().replace("-", "");
-        return "pay-" + timestamp + "-" + random;
+        return "pay-" + "-" + random;
     }
 
     // 주문 조회 화면에서 결제 기준 요약 정보를 붙일 때 사용하는 메서드

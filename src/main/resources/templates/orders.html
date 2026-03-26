@@ -334,6 +334,7 @@
 
             try {
                 const result = await makeApiRequest('list-orders', {
+                    pathParams: { customerId: currentUser?.customerUid }
                 });
 
                 // YML 스키마 기반 자동 검증
@@ -440,7 +441,7 @@
                     currency: 'KRW',
                     payMethod: 'CARD',
                     customer: {
-                        customerId: currentUser.customerUid,  // PortOne에 전달할 고객 UID
+                        customerId: String(currentUser.customerUid), // PortOne에 전달할 고객 UID
                         fullName: currentUser.name,
                         phoneNumber: currentUser.phoneNumber || '01012345678',  // KG 이니시스 필수
                         email: currentUser.email

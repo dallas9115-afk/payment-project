@@ -219,6 +219,7 @@
         async function loadOrders() {
             try {
                 const result = await makeApiRequest('list-orders', {
+                    pathParams: { customerId: currentUser?.customerUid }
                 });
 
                 if (!validateApiResponse('list-orders', result)) {
@@ -456,7 +457,7 @@
                     currency: orderToProcess.currency,
                     payMethod: 'CARD',
                     customer: {
-                        customerId: currentUser.customerUid,
+                        customerId: String(currentUser.customerUid),
                         fullName: currentUser.name,
                         phoneNumber: currentUser.phoneNumber || '01012345678',  // KG 이니시스 필수
                         email: currentUser.email
