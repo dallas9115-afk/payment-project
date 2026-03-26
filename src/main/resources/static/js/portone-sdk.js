@@ -100,10 +100,17 @@ async function openPortOnePayment(paymentData) {
         } else {
             // 결제 성공 → 서버에 결제 확정 요청
             console.log('3단계: 서버에 결제 확정 요청...');
-            const confirmResult = await confirmPaymentTemplate(response.paymentId);
+            if (response.paymentId && response.paymentId !== serverPaymentId) {
+                console.warn('SDK 응답 paymentId와 서버 생성 paymentId가 다릅니다.', {
+                    sdkPaymentId: response.paymentId,
+                    serverPaymentId
+                });
+            }
+
+            const confirmResult = await confirmPaymentTemplate(serverPaymentId);
 
             displaySuccess({
-                paymentId: response.paymentId,
+                paymentId: serverPaymentId,
                 txId: response.txId,
                 message: '결제 확정 완료',
                 confirmResult: confirmResult
@@ -210,12 +217,23 @@ async function openPortOnePaymentWithPoints(paymentData) {
             });
             throw new Error(response.message);
         } else {
-            // 결제 성공
+            // 결제 성공 → 서버에 결제 확정 요청
+            console.log('3단계: 서버에 결제 확정 요청...');
+            if (response.paymentId && response.paymentId !== serverPaymentId) {
+                console.warn('SDK 응답 paymentId와 서버 생성 paymentId가 다릅니다.', {
+                    sdkPaymentId: response.paymentId,
+                    serverPaymentId
+                });
+            }
+
+            const confirmResult = await confirmPaymentTemplate(serverPaymentId);
+
             displaySuccess({
-                paymentId: response.paymentId,
+                paymentId: serverPaymentId,
                 txId: response.txId,
                 pointsUsed: pointsToUse,
-                message: '결제창 완료 (포인트 차감). 서버에서 검증하세요.'
+                message: '결제 확정 완료',
+                confirmResult: confirmResult
             });
             return response;
         }

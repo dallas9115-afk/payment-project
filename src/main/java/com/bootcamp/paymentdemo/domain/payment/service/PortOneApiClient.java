@@ -73,9 +73,12 @@ public class PortOneApiClient {
             throw new PortOneApiException("포트원 결제 조회 네트워크 오류", true);
         } catch (RestClientResponseException e) {
             int statusCode = e.getStatusCode().value();
+            String responseBody = e.getResponseBodyAsString();
+            boolean paymentNotFoundYet = statusCode == 404 && responseBody != null
+                    && responseBody.contains("PAYMENT_NOT_FOUND");
             log.error("포트원 결제 단건조회 HTTP 오류 - paymentId={}, status={}, body={}",
-                    paymentId, statusCode, e.getResponseBodyAsString(), e);
-            boolean retryable = statusCode >= 500 || statusCode == 429;
+                    paymentId, statusCode, responseBody, e);
+            boolean retryable = statusCode >= 500 || statusCode == 429 || paymentNotFoundYet;
             throw new PortOneApiException("포트원 결제 조회 HTTP 오류(" + statusCode + ")", retryable);
         } catch (PortOneApiException e) {
             throw e;
