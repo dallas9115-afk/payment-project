@@ -24,7 +24,7 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/subscriptions/v1")
+//@RequestMapping("/api/subscriptions/v1")
 @RequiredArgsConstructor
 public class SubscriptionController {
 
@@ -48,7 +48,7 @@ public class SubscriptionController {
      * [GET] 구독 상세 조회 (DTO 반환)
      * [피드백 2] 엔티티 직접 반환 ❌ -> DTO 변환 ⭕
      */
-    @GetMapping("/{subscriptionId}")
+    @GetMapping("/api/subscriptions/v1/{subscriptionId}")
     public ResponseEntity<SubscriptionResponse> getSubscription(
             @AuthenticationPrincipal CustomUser user,
             @PathVariable Long subscriptionId) {
@@ -74,14 +74,14 @@ public class SubscriptionController {
      * [GET] 청구 내역 조회
      * YAML: list-billing-history 매핑
      */
-    @GetMapping("/{subscriptionId}/billings")
+    @GetMapping("/api/subscriptions/v1/{subscriptionId}/billings")
     public ResponseEntity<List<BillingHistoryResponse>> getBillingHistory(
             @AuthenticationPrincipal CustomUser user,
             @PathVariable Long subscriptionId) {
         return ResponseEntity.ok(subscriptionService.getBillingHistoryDto(user.getId(), subscriptionId));
     }
 
-    @PostMapping("/{subscriptionId}/billings")
+    @PostMapping("/api/subscriptions/v1/{subscriptionId}/billings")
     public ResponseEntity<CreateBillingResponse> createBilling(
             @AuthenticationPrincipal CustomUser user,
             @PathVariable Long subscriptionId,
@@ -98,7 +98,7 @@ public class SubscriptionController {
      * 1. /api/subscriptions/v1/plans (상단 RequestMapping 유지용)
      * 2. /api/plans (프론트엔드 기본 호출 주소 - 절대 경로 매핑)
      */
-    @GetMapping({"/plans", "/api/plans"}) // 👈 여기 "/api/plans" 앞에 '/'가 절대 경로 역할을 합니다.
+    @GetMapping( "/api/plans") // 👈 여기 "/api/plans" 앞에 '/'가 절대 경로 역할을 합니다.
     public ResponseEntity<List<PlanResponse>> getPlans() {
         log.info("구독 플랜 목록 조회 요청 수신 (Mapping: /api/plans)");
 
@@ -111,6 +111,7 @@ public class SubscriptionController {
                         .amount(p.getPrice())
                         .billingCycle(p.getInterval().name())
                         .description(p.getDescription())
+                        .content(p.getContent())
                         .build())
                 .toList();
 

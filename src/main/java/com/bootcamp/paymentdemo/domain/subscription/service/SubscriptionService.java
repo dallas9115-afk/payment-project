@@ -123,13 +123,13 @@ public class SubscriptionService {
                    .status(SubscriptionStatus.PENDING)
                    .build();
 
-           // [디테일 추가] 체험 기간이 있다면 여기서 바로 TRIALING으로 세팅
-           if (plan.getTrialPeriodDays() > 0) {
-               subscription.startTrial(plan.getTrialPeriodDays());
-           } else {
-               // 즉시 결제 대상이면 다음 결제일을 지금으로 설정
-               subscription.setNextBillingDate(LocalDateTime.now());
-           }
+//           // [디테일 추가] 체험 기간이 있다면 여기서 바로 TRIALING으로 세팅
+//           if (plan.getTrialPeriodDays() > 0) {
+//               subscription.startTrial(plan.getTrialPeriodDays());
+//           } else {
+//               // 즉시 결제 대상이면 다음 결제일을 지금으로 설정
+//               subscription.setNextBillingDate(LocalDateTime.now());
+//           }
 
            subscriptionRepository.save(subscription);
 

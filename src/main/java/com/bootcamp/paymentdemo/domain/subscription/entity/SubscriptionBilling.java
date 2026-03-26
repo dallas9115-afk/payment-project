@@ -29,7 +29,7 @@ public class SubscriptionBilling {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "subscription2_id")
+    @JoinColumn(name = "subscription_id")
     private Subscription subscription;
 
     private Long amount;

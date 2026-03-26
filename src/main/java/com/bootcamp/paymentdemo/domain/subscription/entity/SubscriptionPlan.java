@@ -9,7 +9,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "subscription_plan2")
+@Table(name = "subscription_plan")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
@@ -27,15 +27,15 @@ public class SubscriptionPlan extends BaseEntity {
     private PlanStatus status; // ACTIVE인지 INACTIVE인지
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "billing_interval2")
+    @Column(name = "billing_interval")
     private BillingInterval billingInterval;
-
-    private int trialPeriodDays;
 
     private PlanLevel level;
 
     @Column(length = 500)
     private String description;
+
+    private String content;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "plan_interval")

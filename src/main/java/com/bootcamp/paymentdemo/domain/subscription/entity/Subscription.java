@@ -9,7 +9,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "subscriptions2", indexes = {
+@Table(name = "subscriptions", indexes = {
         @Index(name = "idx_subscription_next_billing", columnList = "nextBillingDate, status")
 })
 @Getter
@@ -26,11 +26,11 @@ public class Subscription extends BaseEntity {
     private Customer customer;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "plan2_id")
+    @JoinColumn(name = "plan_id")
     private SubscriptionPlan plan;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "payment_method2_id")
+    @JoinColumn(name = "payment_method_id")
     private SubscriptionPaymentMethod paymentMethod;
 
     @Enumerated(EnumType.STRING)

@@ -23,14 +23,14 @@ public class Datainitializer implements CommandLineRunner {
 
     private final ProductRepository productRepository;
     private final CustomerRepository customerRepository;
-    private final SubscriptionPlanRepository subscriptionPlanRepository2;
+    private final SubscriptionPlanRepository subscriptionPlanRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
-    public void run(String...args){
+    public void run(String...args) {
         seedTestCustomer();
         seedProducts();
-        seedSubscriptionPlans2();
+        seedSubscriptionPlans();
     }
 
     private void seedTestCustomer() {
@@ -97,42 +97,42 @@ public class Datainitializer implements CommandLineRunner {
         ));
     }
 
-    private void seedSubscriptionPlans2() {
-        if (subscriptionPlanRepository2.count() > 0) {
+    private void seedSubscriptionPlans() {
+        if (subscriptionPlanRepository.count() > 0) {
             return;
         }
 
-        subscriptionPlanRepository2.save(SubscriptionPlan.builder()
+        subscriptionPlanRepository.save(SubscriptionPlan.builder()
                 .name("BASIC")
                 .price(30000L)
                 .status(PlanStatus.ACTIVE)
                 .billingInterval(BillingInterval.MONTHLY)
                 .interval(BillingInterval.MONTHLY)
-                .trialPeriodDays(0)
                 .level(PlanLevel.BASIC)
-                .description("필수 기능을 부담 없는 가격으로 이용할 수 있는 베이직 월간 구독 플랜")
+                .description("베이직 월간 구독 플랜")
+                .content("필수 기능을 부담 없는 가격으로 이용할 수 있는 베이직 월간 구독 플랜")
                 .build());
 
-        subscriptionPlanRepository2.save(SubscriptionPlan.builder()
+        subscriptionPlanRepository.save(SubscriptionPlan.builder()
                 .name("STANDARD")
                 .price(40000L)
                 .status(PlanStatus.ACTIVE)
                 .billingInterval(BillingInterval.MONTHLY)
                 .interval(BillingInterval.MONTHLY)
-                .trialPeriodDays(0)
                 .level(PlanLevel.STANDARD)
-                .description("기본을 넘어 더 다양한 기능과 향상된 서비스를 제공하는 스탠다드 월간 구독 플랜")
+                .description("스탠다드 연간 구독 플랜")
+                .content("더 많은 기능과 높은 만족도를 연간 혜택으로 누릴 수 있는 스탠다드 연간 구독 플랜")
                 .build());
 
-        subscriptionPlanRepository2.save(SubscriptionPlan.builder()
+        subscriptionPlanRepository.save(SubscriptionPlan.builder()
                 .name("VIP")
                 .price(70000L)
                 .status(PlanStatus.ACTIVE)
                 .billingInterval(BillingInterval.MONTHLY)
                 .interval(BillingInterval.MONTHLY)
-                .trialPeriodDays(0)
                 .level(PlanLevel.VIP)
-                .description("모든 프리미엄 혜택과 최상의 서비스를 경험할 수 있는 VIP 월간 구독 플랜")
+                .description("VIP 연간 구독 플랜")
+                .content("모든 프리미엄 혜택과 최상의 서비스를 경험할 수 있는 VIP 월간 구독 플랜")
                 .build());
     }
 }
