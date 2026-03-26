@@ -50,6 +50,12 @@ public class PortOneApiClient {
 
         HttpEntity<Void> entity = new HttpEntity<>(headers);
 
+        log.info("포트원 결제 단건조회 요청 - paymentId={}, url={}, storeIdMask={}, secretMask={}",
+                paymentId,
+                url,
+                mask(portOneProperties.getStore().getId()),
+                mask(portOneProperties.getApi().getSecret()));
+
         try {
             ResponseEntity<PortOnePaymentInfoResponse> response = restTemplate.exchange(
                     url,
@@ -222,6 +228,16 @@ public class PortOneApiClient {
             return idempotencyKey;
         }
         return "\"" + idempotencyKey + "\"";
+    }
+
+    private String mask(String value) {
+        if (value == null || value.isBlank()) {
+            return "<empty>";
+        }
+        if (value.length() <= 8) {
+            return value.charAt(0) + "***" + value.charAt(value.length() - 1);
+        }
+        return value.substring(0, 4) + "***" + value.substring(value.length() - 4);
     }
 
     /**
