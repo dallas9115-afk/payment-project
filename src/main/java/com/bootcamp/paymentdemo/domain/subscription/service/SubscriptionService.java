@@ -21,6 +21,7 @@ import com.bootcamp.paymentdemo.domain.subscription.repository.SubscriptionPlanR
 import com.bootcamp.paymentdemo.domain.subscription.repository.SubscriptionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -44,16 +45,21 @@ public class SubscriptionService {
     private final PortOneApiClient portOneApiClient;
     private final CustomerRepository customerRepository;
 
+    @Lazy
+    private final SubscriptionService self;
+
+
+
     public Long initiateSubscription(Long customerId, Long planId, SubscriptionRequest request) {
         log.info("[구독프로세스 1단계] 시작 - customerId: {}, planId: {}", customerId, planId);
 
         // 1. DB 저장 단계 (트랜잭션 1)
-        BillingContext context = savePendingSubscription(customerId, planId, request);
+        BillingContext context = self.savePendingSubscription(customerId, planId, request);
         log.info("[구독프로세스 2단계] DB 저장 완료 - subId: {}, billingId: {}", context.subscriptionId(), context.billingId());
 
 
         // 2. 포트원 API 호출 단계
-        String paymentId = "SUB_" + context.billingId() + "_" + UUID.randomUUID().toString().substring(0, 8);
+        String paymentId = "SUB_INIT" + context.billingId();
         log.info("[구독프로세스 3단계] 포트원 결제 요청 시작 - paymentId: {}", paymentId);
 
         boolean isSuccess;
@@ -66,13 +72,13 @@ public class SubscriptionService {
         } catch (Exception e) {
             log.error("[구독프로세스 에러] 포트원 통신 중 예외 발생: {}", e.getMessage());
             // 통신 에러 시 '결제 요청 실패'로 업데이트 후 예외 던짐
-            updatePaymentResult(context.subscriptionId(), context.billingId(), false, paymentId);
+            self.updatePaymentResult(context.subscriptionId(), context.billingId(), false, paymentId);
             throw new RuntimeException("결제 대행사 통신 실패", e); // 502 Bad Gateway 등으로 핸들링 권장
         }
 
         // 3. 결과 업데이트 단계 (트랜잭션 2)
         log.info("[구독프로세스 4단계] 결제 결과 업데이트 - 성공여부: {}", isSuccess);
-        updatePaymentResult(context.subscriptionId(), context.billingId(), isSuccess, paymentId);
+        self.updatePaymentResult(context.subscriptionId(), context.billingId(), isSuccess, paymentId);
 
         if (!isSuccess) {
             log.warn("[구독프로세스 실패] 초기 결제 거절됨 - subId: {}", context.subscriptionId());
@@ -198,6 +204,7 @@ public class SubscriptionService {
             log.info("결제 성공! 이제 ACTIVE로 바꿉니다. 현재상태: {}", sub.getStatus());
             sub.activate();
             log.info("변경 후 상태: {}", sub.getStatus());
+
             // 상태를 REQUESTED로 변경 (웹훅 대기)
         } else {
             billing.setPaymentId(paymentId);
