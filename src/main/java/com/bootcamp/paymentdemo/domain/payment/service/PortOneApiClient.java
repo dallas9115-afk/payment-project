@@ -24,24 +24,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PortOneApiClient {
 
-    /**
-     * 외부 HTTP 통신 도구
-     * - 실무에서는 WebClient를 쓰는 경우도 많지만, 현재 프로젝트는 RestTemplate으로 충분합니다.
-     */
     private final RestTemplate restTemplate = new RestTemplate();
-
-    /**
-     * application.yml -> portone.* 설정을 바인딩한 값
-     * - API base-url, secret, store-id 등을 여기서 가져옵니다.
-     */
     private final PortOneProperties portOneProperties;
 
-    /**
-     * PortOne 결제 단건 조회
-     *
-     * @param paymentId 우리 시스템/PortOne에서 공통으로 사용하는 결제 식별자
-     * @return PortOnePaymentInfoResponse (상태, 금액, 상점ID 등 검증용 정보)
-     */
     public PortOnePaymentInfoResponse getPaymentInfo(String paymentId, String idempotencyKey) {
         String url = portOneProperties.getApi().getBaseUrl() + "/payments/" + paymentId;
 
@@ -75,7 +60,6 @@ public class PortOneApiClient {
             return body;
 
         } catch (ResourceAccessException e) {
-            // 네트워크 단절/타k임아웃 계열: 재시도 대상
             log.error("포트원 결제 단건조회 네트워크 오류 - paymentId={}, message={}", paymentId, e.getMessage(), e);
             throw new PortOneApiException("포트원 결제 조회 네트워크 오류", true);
         } catch (RestClientResponseException e) {
@@ -95,16 +79,11 @@ public class PortOneApiClient {
         }
     }
 
-    /**
-     * 포트원 결제 취소(환불) 요청
-     *
-     * 문서 기준으로 reason은 body에 넣어야 하므로 JSON 바디로 전달합니다.
-     */
     public PortOnePaymentInfoResponse paymentCancel(
             String paymentId,
             String reason,
             String idempotencyKey,
-            Long amount // 기본값 null
+            Long amount
     ) {
         String url = portOneProperties.getApi().getBaseUrl() + "/payments/" + paymentId + "/cancel";
         HttpHeaders headers = buildJsonHeaders(idempotencyKey);
@@ -114,7 +93,6 @@ public class PortOneApiClient {
         return executeCancelRequest(paymentId, reason, amount, url, entity);
     }
 
-    // 멱등키 헤더
     private HttpHeaders buildJsonHeaders(String idempotencyKey) {
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "PortOne " + portOneProperties.getApi().getSecret());
@@ -123,7 +101,6 @@ public class PortOneApiClient {
         return headers;
     }
 
-    // 바디 만들기
     private Map<String, Object> buildCancelRequestBody(String reason, Long amount) {
         Map<String, Object> body = new HashMap<>();
         body.put("reason", reason);
@@ -168,7 +145,6 @@ public class PortOneApiClient {
             return resolvedPaymentInfo;
 
         } catch (ResourceAccessException e) {
-            // 네트워크 단절/타임아웃 계열: 재시도 대상
             log.error("포트원 결제 취소 네트워크 오류 - paymentId={}, message={}", paymentId, e.getMessage(), e);
             throw new PortOneApiException("포트원 결제 취소 네트워크 오류", true);
         } catch (RestClientResponseException e) {
@@ -203,21 +179,18 @@ public class PortOneApiClient {
 
     /**
      * 포트원 빌링키 결제 요청 (정기결제)
-     *
-     * @param billingKey PortOne에서 발급받아 저장한 빌링키
-     * @param paymentId  이번 결제 고유 식별자
-     * @param amount     결제 금액
-     * @return true: 결제 성공, false: 결제 실패
+     * [개선] 멱등키(idempotencyKey)를 외부에서 주입받도록 파라미터 추가
      */
-    public boolean payWithBillingKey(String billingKey, String paymentId, int amount) {
+    public boolean payWithBillingKey(String billingKey, String paymentId, int amount, String idempotencyKey) {
         String url = portOneProperties.getApi().getBaseUrl() + "/payments/" + paymentId + "/billing-key";
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "PortOne " + portOneProperties.getApi().getSecret());
-        headers.set("Idempotency-Key", "\"" + UUID.randomUUID() + "\"");
+
+        // [개선] 파라미터로 받은 멱등키를 안전하게 헤더에 세팅 (재시도 방어)
+        headers.set("Idempotency-Key", quoteIdempotencyKey(idempotencyKey));
         headers.set("Content-Type", "application/json");
 
-        // 최소 요청 바디만 직접 구성
         String requestBody = String.format(
                 "{\"billingKey\":\"%s\",\"orderName\":\"월간 정기 구독\",\"amount\":{\"total\":%d},\"currency\":\"KRW\"}",
                 billingKey, amount
@@ -226,7 +199,7 @@ public class PortOneApiClient {
         HttpEntity<String> entity = new HttpEntity<>(requestBody, headers);
 
         try {
-            log.info("포트원 빌링키 결제 요청 - paymentId={}, amount={}", paymentId, amount);
+            log.info("포트원 빌링키 결제 요청 - paymentId={}, amount={}, idempotencyKey={}", paymentId, amount, idempotencyKey);
             ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
             log.info("포트원 빌링키 결제 성공 - paymentId={}, response={}", paymentId, response.getBody());
             return true;
@@ -237,17 +210,19 @@ public class PortOneApiClient {
     }
 
     public String buildVerifyIdempotencyKey(String paymentId) {
-        // "같은 verify 작업은 같은 키"를 보장하기 위한 결정적 키
         return "pay:" + paymentId + ":verify:v1";
     }
 
     public String buildCancelIdempotencyKey(String paymentId) {
-        // "같은 cancel 작업은 같은 키"를 보장하기 위한 결정적 키
         return "pay:" + paymentId + ":cancel:full:v1";
     }
 
+    /**
+     * [개선] 멱등키를 안전하게 처리. 이중 따옴표가 중복되지 않도록 방어.
+     */
     private String quoteIdempotencyKey(String idempotencyKey) {
         if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            // 값이 안 들어왔다면 기본적으로 랜덤 UUID 생성 (마지막 수단)
             return "\"" + UUID.randomUUID() + "\"";
         }
         if (idempotencyKey.startsWith("\"") && idempotencyKey.endsWith("\"")) {
@@ -295,19 +270,11 @@ public class PortOneApiClient {
         return value.substring(0, 4) + "***" + value.substring(value.length() - 4);
     }
 
-    /**
-     * 포트원 빌링키 해지(삭제) 요청
-     * - 구독 해지 시 호출하여 다음 결제가 일어나지 않도록 방지합니다.
-     *
-     * @param billingKey 삭제할 빌링키
-     */
     public void unsubscribeBillingKey(String billingKey) {
-        // 포트원 V2 빌링키 삭제 엔드포인트
         String url = portOneProperties.getApi().getBaseUrl() + "/billing-keys/" + billingKey;
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "PortOne " + portOneProperties.getApi().getSecret());
-        // DELETE 요청도 안전을 위해 멱등키를 생성해서 보냅니다.
         headers.set("Idempotency-Key", quoteIdempotencyKey("unsub-" + billingKey));
 
         HttpEntity<Void> entity = new HttpEntity<>(headers);
@@ -326,20 +293,15 @@ public class PortOneApiClient {
 
         } catch (RestClientResponseException e) {
             int statusCode = e.getStatusCode().value();
-            // 이미 삭제된 키인 경우(404)는 성공으로 간주해도 무방하지만, 일단 로그를 남깁니다.
             log.error("포트원 빌링키 해지 HTTP 오류 - billingKey={}, status={}, body={}",
                     billingKey, statusCode, e.getResponseBodyAsString());
 
-            // 404가 아니면 예외를 던져서 서비스 레이어에서 CANCEL_FAILED 처리를 하게 합니다.
             if (statusCode != 404) {
                 throw new PortOneApiException("빌링키 해지 중 오류가 발생했습니다. (" + statusCode + ")", false);
             }
         } catch (Exception e) {
             log.error("포트원 빌링키 해지 통신 실패 - billingKey={}, message={}", billingKey, e.getMessage());
             throw new PortOneApiException("빌링키 해지 통신 중 알 수 없는 오류 발생", true);
-
-
-
         }
     }
 }
