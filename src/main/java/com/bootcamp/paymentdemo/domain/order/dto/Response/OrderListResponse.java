@@ -13,20 +13,20 @@ public class OrderListResponse {
     private final Integer usedPoints;
     private final Integer finalAmount;
     private final Integer earnedPoints;
-    private final String currency;
-
+    private final String currency; // 통화
     private final String status;
     private final LocalDateTime createdAt;
 
-    public OrderListResponse(String orderNumber, String orderId, Integer totalAmount, Integer finalAmount, String currency, String status, LocalDateTime createdAt) {
+
+    public OrderListResponse(String orderNumber, String orderId, Integer totalAmount, Integer usedPoints, Integer finalAmount, Integer earnedPoints, String currency, String status, LocalDateTime createdAt) {
         this.orderNumber = orderNumber;
         this.orderId = orderId;
         this.totalAmount = totalAmount;
+        this.usedPoints = usedPoints;
         this.finalAmount = finalAmount;
+        this.earnedPoints = earnedPoints;
         this.currency = currency;
         this.status = status;
         this.createdAt = createdAt;
-        this.usedPoints = 0;
-        this.earnedPoints = 0;
     }
 }

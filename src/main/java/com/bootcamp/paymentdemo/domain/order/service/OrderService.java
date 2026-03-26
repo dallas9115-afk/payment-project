@@ -13,6 +13,11 @@ import com.bootcamp.paymentdemo.domain.order.entity.OrderItem;
 import com.bootcamp.paymentdemo.domain.order.entity.OrderStatus;
 import com.bootcamp.paymentdemo.domain.order.repository.OrderItemRepository;
 import com.bootcamp.paymentdemo.domain.order.repository.OrderRepository;
+import com.bootcamp.paymentdemo.domain.payment.entity.Payment;
+import com.bootcamp.paymentdemo.domain.payment.repository.PaymentRepository;
+import com.bootcamp.paymentdemo.domain.point.entity.PointHistory;
+import com.bootcamp.paymentdemo.domain.point.entity.PointType;
+import com.bootcamp.paymentdemo.domain.point.repository.PointHistoryRepository;
 import com.bootcamp.paymentdemo.domain.product.entity.Product;
 import com.bootcamp.paymentdemo.domain.product.repository.ProductRepository;
 import com.bootcamp.paymentdemo.global.error.CommonError;
@@ -38,10 +43,11 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final CustomerRepository customerRepository;
     private final ProductRepository productRepository;
+    private final PaymentRepository paymentRepository;
+    private final PointHistoryRepository pointHistoryRepository;
 
 
-
-//  주문 생성
+    //  주문 생성
     @Transactional
     public CreateOrderResponse save(Long customerId,CreateOrderRequest request) {
         // 1. 고객 조회
@@ -160,12 +166,34 @@ public class OrderService {
         List<OrderListResponse> responseList = new ArrayList<>();
 
         for (Order order : orders) {
+            Payment payment=paymentRepository.findByOrder(order)
+                    .orElseThrow(()-> new IllegalArgumentException("해당 주문의 결제 정보가 없습니다"));
+
+            // 적립, 사용한 포인트 0으로 선언.
+            Integer usedPoints = 0;
+            Integer finalAmount = order.getTotalAmount();
+            Integer earnedPoints = 0;
+
+            // 타입을 맞추기 위해서 intValue(); 사용해서 맞춰준다.
+            usedPoints = payment.getUsePoint().intValue();
+            finalAmount = payment.getPgAmount().intValue();
+
+            List<PointHistory> pointHistories =
+                    pointHistoryRepository.findAllByOrderIdAndType(order.getOrderId(), PointType.EARNED);
+
+            for (PointHistory pointHistory : pointHistories) {
+                earnedPoints += pointHistory.getAmount().intValue();
+            }
+
+
             OrderListResponse response = new OrderListResponse(
                     order.getOrderNumber(),
                     order.getOrderId(),
-                    order.getTotalAmount(),   // 수정 필요. total
-                    order.getTotalAmount(),// 수정 필요.final
-                    "KRW",
+                    order.getTotalAmount(),   // 주문 금액(포인트 차감전)
+                    usedPoints,               // 사용한 포인트
+                    finalAmount,              // 최종 결제 금액
+                    earnedPoints,             // 적립된 포인트
+                    "KRW",                    // 통화
                     order.getStatus().name(),
                     order.getCreatedAt()
             );
