@@ -166,17 +166,19 @@ public class OrderService {
         List<OrderListResponse> responseList = new ArrayList<>();
 
         for (Order order : orders) {
-            Payment payment=paymentRepository.findByOrder(order)
-                    .orElseThrow(()-> new IllegalArgumentException("해당 주문의 결제 정보가 없습니다"));
+            Payment payment = paymentRepository.findByOrder(order).orElse(null);
 
             // 적립, 사용한 포인트 0으로 선언.
             Integer usedPoints = 0;
             Integer finalAmount = order.getTotalAmount();
             Integer earnedPoints = 0;
 
-            // 타입을 맞추기 위해서 intValue(); 사용해서 맞춰준다.
-            usedPoints = payment.getUsePoint().intValue();
-            finalAmount = payment.getPgAmount().intValue();
+            // 결제 정보가 있으면 실제 값 반영
+            if (payment != null) {
+                usedPoints = payment.getUsePoint().intValue();
+                finalAmount = payment.getPgAmount().intValue();
+            }
+
 
             List<PointHistory> pointHistories =
                     pointHistoryRepository.findAllByOrderIdAndType(order.getOrderId(), PointType.EARNED);
