@@ -1,4 +1,4 @@
-package com.bootcamp.paymentdemo.domain.subscription2.service;
+package com.bootcamp.paymentdemo.domain.subscription.service;
 
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import lombok.RequiredArgsConstructor;

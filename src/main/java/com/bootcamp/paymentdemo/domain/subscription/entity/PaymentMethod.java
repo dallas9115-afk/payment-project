@@ -1,4 +1,4 @@
-package com.bootcamp.paymentdemo.domain.subscription2.entity;
+package com.bootcamp.paymentdemo.domain.subscription.entity;
 
 import com.bootcamp.paymentdemo.domain.payment.enums.PaymentMethodStatus;
 import com.bootcamp.paymentdemo.global.common.BaseEntity;
@@ -13,7 +13,7 @@ import lombok.*;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor
-public class PaymentMethod2 extends BaseEntity {
+public class PaymentMethod extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

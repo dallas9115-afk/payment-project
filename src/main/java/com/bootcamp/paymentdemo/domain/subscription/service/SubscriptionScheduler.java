@@ -1,4 +1,4 @@
-package com.bootcamp.paymentdemo.domain.subscription2.service;
+package com.bootcamp.paymentdemo.domain.subscription.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class SubscriptionScheduler2 {
+public class SubscriptionScheduler {
 
     // [수정] 직접 서비스를 부르지 않고, 배치 전용 서비스를 주입받습니다.
     private final RecurringBillingService recurringBillingService;

@@ -1,114 +1,78 @@
 package com.bootcamp.paymentdemo.domain.subscription.entity;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "subscription_billing")
+@Table(
+        name = "subscription_billing2",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "unique_subscription_scheduled_date",
+                        columnNames = {"subscription2_id", "scheduled_date"} // 이 두 조합은 유일해야 함
+                )
+        }
+)
+
+// 쿼리 콘솔에 CREATE UNIQUE INDEX idx_sub_billing_unique
+//ON subscription_billing (subscription_id, scheduled_date); 반드시 입력해주세요
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Builder
+@AllArgsConstructor
 public class SubscriptionBilling {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "subscription_id", nullable = false)
+    @JoinColumn(name = "subscription2_id")
     private Subscription subscription;
 
     private Long amount;
     private String paymentId;
 
+    @CreatedDate // Spring Data JPA 사용 시
+    @Column(updatable = false)
+    private LocalDateTime createdAt;
+
+    private LocalDateTime scheduledDate;
 
     @Enumerated(EnumType.STRING)
-    private BillingStatus billingStatus;
+    private BillingStatus status; // READY(시도전), SUCCESS(성공), FAILED(실패)
 
-    @CreatedDate
-    @Column(updatable = false)
-    private LocalDateTime createdAt; // 생성일
+    private String errorMessage; // 실패 사유
 
 
-    private LocalDateTime billedAt; // 결제 시도일
+    public void updateStatus(BillingStatus billingStatus) {
+        this.status = billingStatus;
+    }
 
-    private LocalDateTime billingPeriodStartAt; // 청구 기간
+    public void complete(String paymentId) {
+        this.status = BillingStatus.SUCCESS; // 상태 변경
+        this.paymentId = paymentId;          // 포트원 거래 고유 번호 저장
+        // 로깅이나 감사용으로 결제 완료 시간 등을 추가로 기록해도 좋습니다.
+    }
 
-    private LocalDateTime billingPeriodEndAt; // 청구 기간 종료일
+    public void fail(String message) {
+        this.status = BillingStatus.FAILED;
+        this.errorMessage = message; // 실패 사유를 DB에 남겨야 나중에 CS 대응이 가능합니다!
+    }
 
+    public void markRequested(String paymentId) {
+        this.status = BillingStatus.REQUESTED;
+        this.paymentId = paymentId; // 👈 나중에 웹훅(confirm)에서 이 ID로 찾아야 함!
+    }
 
-    @Column(length = 50)
-    private String errorMessage;
+    public boolean isCompleted() {
+        return this.status == BillingStatus.SUCCESS ||
+                this.status == BillingStatus.FAILED;
+    }
 
-
-
-    public SubscriptionBilling(
-            Subscription subscription,
-            Long amount,
-            String paymentId,
-            BillingStatus billingStatus,
-            LocalDateTime billedAt,
-            LocalDateTime billingPeriodStartAt,
-            LocalDateTime billingPeriodEndAt,
-            String errorMessage
-    ) {
-        this.subscription = subscription;
-        this.amount = amount;
+    public void setPaymentId(String paymentId) {
         this.paymentId = paymentId;
-        this.billingStatus = billingStatus;
-        this.billedAt = billedAt;
-        this.billingPeriodStartAt = billingPeriodStartAt;
-        this.billingPeriodEndAt = billingPeriodEndAt;
-        this.errorMessage = errorMessage;
     }
-
-
-    // static이라 호출가능. 성공 했을때.
-    public static SubscriptionBilling success(
-            Subscription subscription,
-            Long amount,
-            LocalDateTime billedAt,
-            LocalDateTime billingPeriodStartAt,
-            LocalDateTime billingPeriodEndAt
-    ) {
-        return new SubscriptionBilling(
-                subscription,
-                amount,
-                null,
-                BillingStatus.SUCCESS,
-                billedAt,
-                billingPeriodStartAt,
-                billingPeriodEndAt,
-                null
-        );
-    }
-
-
-    // static이라 호출가능. 실패 했을때.
-    public static SubscriptionBilling fail(
-            Subscription subscription,
-            Long amount,
-            LocalDateTime billedAt,
-            LocalDateTime billingPeriodStartAt,
-            LocalDateTime billingPeriodEndAt,
-            String errorMessage
-    ) {
-        return new SubscriptionBilling(
-                subscription,
-                amount,
-                null,
-                BillingStatus.FAILED,
-                billedAt,
-                billingPeriodStartAt,
-                billingPeriodEndAt,
-                errorMessage
-        );
-    }
-
-
-
 }

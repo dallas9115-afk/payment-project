@@ -1,7 +1,8 @@
-package com.bootcamp.paymentdemo.domain.subscription2.dto.request;
+package com.bootcamp.paymentdemo.domain.subscription.dto.request;
 
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -11,9 +12,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SubscriptionRequest2 {
+public class SubscriptionRequest {
 
-    @NotBlank(message = "플랜 ID는 필수입니다.")
+    @NotNull(message = "플랜 ID는 필수입니다.")
     private Long planId;           // 선택한 요금제 PK
 
     @NotBlank(message = "빌링키는 필수입니다.")

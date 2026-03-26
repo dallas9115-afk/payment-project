@@ -1,7 +1,7 @@
-package com.bootcamp.paymentdemo.domain.subscription2.service;
+package com.bootcamp.paymentdemo.domain.subscription.service;
 
-import com.bootcamp.paymentdemo.domain.subscription2.entity.Subscription2;
-import com.bootcamp.paymentdemo.domain.subscription2.repository.SubscriptionRepository2;
+import com.bootcamp.paymentdemo.domain.subscription.entity.Subscription;
+import com.bootcamp.paymentdemo.domain.subscription.repository.SubscriptionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -19,8 +19,8 @@ import java.util.concurrent.*;
 @Slf4j
 public class RecurringBillingService {
 
-    private final SubscriptionRepository2 subscriptionRepository;
-    private final SubscriptionService2 subscriptionService;
+    private final SubscriptionRepository subscriptionRepository;
+    private final SubscriptionService subscriptionService;
 
     public void processAllRecurringBillings() {
         LocalDateTime now = LocalDateTime.now();
@@ -40,13 +40,13 @@ public class RecurringBillingService {
             while (true) {
                 // [피드백 4] ID 정렬 기반 커서 조회 (누락 방지)
                 Pageable pageable = PageRequest.of(0, pageSize, Sort.by("id").ascending());
-                List<Subscription2> targets = subscriptionRepository.findBillingTargetsCursor(now, lastId, pageable);
+                List<Subscription> targets = subscriptionRepository.findBillingTargetsCursor(now, lastId, pageable);
 
                 if (targets.isEmpty()) break;
 
                 Long maxIdInBatch = lastId;
 
-                for (Subscription2 sub : targets) {
+                for (Subscription sub : targets) {
                     // [피드백 2] 과부하 방지 (Back-pressure): 큐가 너무 차면 잠시 대기
                     while (executor.getQueue().size() > 800) {
                         log.debug("스레드 풀 큐가 가득 참. 대기 중...");

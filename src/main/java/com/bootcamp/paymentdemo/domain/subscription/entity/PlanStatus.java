@@ -1,11 +1,11 @@
-package com.bootcamp.paymentdemo.domain.subscription2.entity;
+package com.bootcamp.paymentdemo.domain.subscription.entity;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum PlanStatus2 {
+public enum PlanStatus {
 
     ACTIVE("ACTIVE", "활성"),
     INACTIVE("INACTIVE", "비활성");
