@@ -44,60 +44,47 @@ public class SubscriptionService {
     private final PortOneApiClient portOneApiClient;
     private final CustomerRepository customerRepository;
 
-    //구독 신청 및 결제 준비
     public Long initiateSubscription(Long customerId, Long planId, SubscriptionRequest request) {
-        log.info("구독 생성 시작 - customerId={}, planId={}, customerUid={}, billingKey={}",
-                customerId,
-                planId,
-                request.getCustomerUid(),
-                request.getBillingKey());
+        log.info("[구독프로세스 1단계] 시작 - customerId: {}, planId: {}", customerId, planId);
 
-        // 1. [DB 작업] PENDING 저장 및 결제에 필요한 '바구니' 수령 (트랜잭션 1 종료)
+        // 1. DB 저장 단계 (트랜잭션 1)
         BillingContext context = savePendingSubscription(customerId, planId, request);
+        log.info("[구독프로세스 2단계] DB 저장 완료 - subId: {}, billingId: {}", context.subscriptionId(), context.billingId());
 
-        log.info("구독 생성 1차 저장 완료 - subscriptionId={}, billingId={}, amount={}",
-                context.subscriptionId(),
-                context.billingId(),
-                context.amount());
-
-        // [체험판 처리]
-        // BillingContext에 체험판 여부(isTrial) 정보를 넣었다면 더 깔끔하지만,
-        // 일단 현재 구조에서는 planId로 체크하거나 context의 특정 필드로 판단합니다.
-        if (context.amount() == 0) { // 예: 체험판은 결제 금액이 0원인 경우
-            log.info("체험 기간 구독으로 결제 없이 바로 종료합니다. SubID: {}", context.subscriptionId());
+        if (context.amount() == 0) {
+            log.info("[구독프로세스 종료] 체험판 무료 구독 완료");
             return context.subscriptionId();
         }
 
-        // 2. [외부 API 호출] 트랜잭션 외부 실행 (DB 조회 없이 context에서 바로 꺼냄!)
-        // 💡 피드백 반영: billingRepository.findById 싹 제거!
+        // 2. 포트원 API 호출 단계
         String paymentId = "SUB_" + context.billingId() + "_" + UUID.randomUUID().toString().substring(0, 8);
+        log.info("[구독프로세스 3단계] 포트원 결제 요청 시작 - paymentId: {}", paymentId);
 
-        log.info("포트원 결제 요청 시작: paymentId={}, customerId={}", paymentId, context.customerId());
+        boolean isSuccess;
+        try {
+            isSuccess = portOneApiClient.payWithBillingKey(
+                    context.billingKey(),
+                    paymentId,
+                    context.amount().intValue()
+            );
+        } catch (Exception e) {
+            log.error("[구독프로세스 에러] 포트원 통신 중 예외 발생: {}", e.getMessage());
+            // 통신 에러 시 '결제 요청 실패'로 업데이트 후 예외 던짐
+            updatePaymentResult(context.subscriptionId(), context.billingId(), false, paymentId);
+            throw new RuntimeException("결제 대행사 통신 실패", e); // 502 Bad Gateway 등으로 핸들링 권장
+        }
 
-        boolean isSuccess = portOneApiClient.payWithBillingKey(
-                context.billingKey(),      // 바구니에서 꺼냄
-                paymentId,
-                context.amount().intValue() // 바구니에서 꺼냄
-        );
-
-        log.info("포트원 정기결제 요청 결과 - subscriptionId={}, billingId={}, paymentId={}, success={}",
-                context.subscriptionId(),
-                context.billingId(),
-                paymentId,
-                isSuccess);
-
-        // 3. [DB 작업] 결과 업데이트 (트랜잭션 2 시작 및 종료)
+        // 3. 결과 업데이트 단계 (트랜잭션 2)
+        log.info("[구독프로세스 4단계] 결제 결과 업데이트 - 성공여부: {}", isSuccess);
         updatePaymentResult(context.subscriptionId(), context.billingId(), isSuccess, paymentId);
 
         if (!isSuccess) {
-            log.error("초기 구독 결제 요청 실패 - subscriptionId={}, billingId={}, paymentId={}",
-                    context.subscriptionId(),
-                    context.billingId(),
-                    paymentId);
-            throw new IllegalStateException("초기 구독 결제 요청에 실패했습니다.");
+            log.warn("[구독프로세스 실패] 초기 결제 거절됨 - subId: {}", context.subscriptionId());
+            // 비즈니스 예외로 던져서 핸들러에서 처리하게 함
+            throw new IllegalStateException("초기 구독 결제 승인이 거절되었습니다.");
         }
 
-        log.info("구독 생성 완료 - subscriptionId={}", context.subscriptionId());
+        log.info("[구독프로세스 완료] 구독 및 첫 결제 성공 - subId: {}", context.subscriptionId());
         return context.subscriptionId();
     }
 
