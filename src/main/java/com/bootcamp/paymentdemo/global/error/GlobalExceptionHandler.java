@@ -23,6 +23,31 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    // 테스트
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalArgumentException(IllegalArgumentException e) {
+        log.warn("Illegal argument", e);
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.fail(
+                        HttpStatus.BAD_REQUEST.value(),
+                        "BAD_REQUEST",
+                        e.getMessage()
+                ));
+    }
+// 테스트
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalStateException(IllegalStateException e) {
+        log.warn("Illegal state", e);
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.fail(
+                        HttpStatus.CONFLICT.value(),
+                        "CONFLICT",
+                        e.getMessage()
+                ));
+    }
+
     // Unexpected Error
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
