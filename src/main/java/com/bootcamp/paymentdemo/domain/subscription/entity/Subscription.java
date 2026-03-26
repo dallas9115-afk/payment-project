@@ -31,7 +31,7 @@ public class Subscription extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "payment_method2_id")
-    private PaymentMethod paymentMethod;
+    private SubscriptionPaymentMethod paymentMethod;
 
     @Enumerated(EnumType.STRING)
     private SubscriptionStatus status; // PENDING(빌링키 발급 이후 1차저장), ACTIVE(결제 완료 후 2차저장), PAST_DUE(미납), CANCELED(해지)

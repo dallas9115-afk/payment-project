@@ -98,9 +98,9 @@ public class SubscriptionService {
            // 2. 결제 수단(카드 정보) 저장
            // 기존에 설정된 기본 카드가 있다면 해제 (정합성)
            subscriptionPaymentMethodRepository.findByCustomerIdAndIsDefaultTrue(customerId)
-                   .ifPresent(PaymentMethod::unsetDefault);
+                   .ifPresent(SubscriptionPaymentMethod::unsetDefault);
 
-           PaymentMethod method = PaymentMethod.builder()
+           SubscriptionPaymentMethod method = SubscriptionPaymentMethod.builder()
                    .customerId(customerId)
                    .billingKey(request.getBillingKey())
                    .customerUid(request.getCustomerUid())
