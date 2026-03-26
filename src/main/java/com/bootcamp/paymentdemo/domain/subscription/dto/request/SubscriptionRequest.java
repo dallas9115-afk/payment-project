@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 public class SubscriptionRequest {
 
     @NotNull(message = "플랜 ID는 필수입니다.")
-    private Long planId;           // 선택한 요금제 PK
+    private String planId;           // 선택한 요금제 PK
 
     @NotBlank(message = "빌링키는 필수입니다.")
     private String billingKey;     // 포트원에서 발급받은 열쇠 (가장 중요!)
