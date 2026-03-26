@@ -15,6 +15,7 @@ import com.bootcamp.paymentdemo.global.error.PortOneApiException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -34,6 +35,7 @@ public class PaymentRetryService {
      * 스케줄러가 주기적으로 호출하는 재시도 실행 진입점
      * - 지금 시각 기준 실행 가능한 PENDING 작업을 최대 100건 가져와 처리합니다.
      */
+    @Transactional
     public void processPendingTasks() {
         List<PaymentRetryTask> tasks =
                 paymentRetryTaskRepository.findTop100ByStatusAndNextAttemptAtLessThanEqualOrderByIdAsc(
@@ -159,6 +161,7 @@ public class PaymentRetryService {
      * - VERIFY 재시도 작업이 살아있는 결제는 아직 확인 중인 건으로 보고 건드리지 않습니다.
      * - 재시도 작업이 없는 결제만 EXPIRED + 주문 취소 처리합니다.
      */
+    @Transactional
     public void expirePayments() {
         List<Payment> payments = paymentRepository.findByStatusAndExpiresAtLessThanEqual(
                 PaymentStatus.READY,

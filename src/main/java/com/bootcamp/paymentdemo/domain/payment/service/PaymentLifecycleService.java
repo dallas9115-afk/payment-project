@@ -219,6 +219,7 @@ public class PaymentLifecycleService {
                 () -> new IllegalStateException("환불 요청 레코드가 없습니다. paymentId=" + payment.getPaymentId())
         );
         refund.markRefunded();
+        refundRepository.save(refund);
     }
 
     // 환불 재시도 상태 반영
@@ -227,6 +228,7 @@ public class PaymentLifecycleService {
                 () -> new IllegalStateException("환불 요청 레코드가 없습니다. paymentId=" + payment.getPaymentId())
         );
         refund.markRetrying();
+        refundRepository.save(refund);
     }
 
     // PortOne 취소 결과가 최종 취소 상태인지 확인
@@ -238,6 +240,7 @@ public class PaymentLifecycleService {
     }
 
     // 환불 재시도 최종 실패 상태 반영
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markRefundFailed(String paymentId) {
         Payment payment = paymentRepository.findWithLockByPaymentId(paymentId).orElseThrow(
                 () -> new IllegalArgumentException("결제 시도 내역이 없습니다. paymentId=" + paymentId)
@@ -246,6 +249,7 @@ public class PaymentLifecycleService {
                 () -> new IllegalStateException("환불 요청 레코드가 없습니다. paymentId=" + paymentId)
         );
         refund.markFailed();
+        refundRepository.save(refund);
     }
 
     // 결제 확정 후 주문/재고/포인트/멤버십 후처리
