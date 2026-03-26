@@ -166,7 +166,7 @@ public class OrderService {
         List<OrderListResponse> responseList = new ArrayList<>();
 
         for (Order order : orders) {
-            Payment payment = paymentRepository.findByOrder(order).orElse(null);
+            Payment payment = paymentRepository.findTopByOrderOrderByCreatedAtDesc(order).orElse(null);
 
             // 적립, 사용한 포인트 0으로 선언.
             Integer usedPoints = 0;
