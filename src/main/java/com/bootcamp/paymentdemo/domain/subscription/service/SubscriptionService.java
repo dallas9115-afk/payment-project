@@ -45,7 +45,7 @@ public class SubscriptionService {
     private final CustomerRepository customerRepository;
 
     //구독 신청 및 결제 준비
-    public Long initiateSubscription(Long customerId, Long planId, SubscriptionRequest request) {
+    public Long initiateSubscription(Long customerId, String planId, SubscriptionRequest request) {
         log.info("구독 생성 시작 - customerId={}, planId={}, customerUid={}, billingKey={}",
                 customerId,
                 planId,
@@ -102,7 +102,7 @@ public class SubscriptionService {
     }
 
     @Transactional //이 메서드가 끝나면 DB 커넥션을 즉시 반납
-    public BillingContext savePendingSubscription(Long customerId, Long planId, SubscriptionRequest request) {
+    public BillingContext savePendingSubscription(Long customerId, String planId, SubscriptionRequest request) {
         try {
             // [멱등성 체크 추가]
             // 오늘 날짜로 이미 'READY'나 'SUCCESS'인 청구가 있는지 확인합니다.
@@ -124,8 +124,9 @@ public class SubscriptionService {
                 log.warn("이미 오늘 해당 플랜에 대한 결제 시도가 있었습니다. customerId={}", customerId);
                 throw new IllegalStateException("이미 결제가 진행 중인 요청입니다.");
             }
+            Long valueOfPlanId= Long.parseLong(planId);
             // 1. 플랜 조회
-            SubscriptionPlan plan = subscriptionPlanRepository.findById(planId)
+            SubscriptionPlan plan = subscriptionPlanRepository.findById(valueOfPlanId)
                     .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 플랜입니다."));
 
             log.info("플랜 조회 성공 - planId={}, planName={}, price={}",

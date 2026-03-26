@@ -28,7 +28,7 @@ public interface SubscriptionBillingRepository extends JpaRepository<Subscriptio
             "AND b.createdAt >= :scheduledDate")
     boolean existsByCustomerAndPlanAndDate(
             @Param("customerId") Long customerId,
-            @Param("planId") Long planId,
+            @Param("planId") String planId,
             @Param("scheduledDate") LocalDateTime scheduledDate);
 
     Optional<SubscriptionBilling> findByPaymentId(String paymentId);
