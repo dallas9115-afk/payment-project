@@ -202,7 +202,9 @@ public class SubscriptionService {
                 .orElseThrow(() -> new IllegalArgumentException("결제 로그를 찾을 수 없습니다."));
 
         if (isSuccess) {
-            billing.markRequested(paymentId); // 상태를 REQUESTED로 변경 (웹훅 대기)
+            billing.markRequested(paymentId);
+            sub.activate();
+            // 상태를 REQUESTED로 변경 (웹훅 대기)
         } else {
             billing.setPaymentId(paymentId);
             billing.fail("정기 결제 요청에 실패했습니다.");
