@@ -147,7 +147,7 @@ public class SubscriptionService {
                     .customer(customer)
                     .plan(plan)
                     .paymentMethod(method)
-                    .status(SubscriptionStatus.PENDING)
+                    .status(SubscriptionStatus.ACTIVE)
                     .build();
 
             subscriptionRepository.save(subscription);
@@ -194,8 +194,8 @@ public class SubscriptionService {
 
         if (isSuccess) {
             billing.markRequested(paymentId);
-            activateSubscription(subId);
-//            sub.activate();
+//            activateSubscription(subId);
+            sub.activate();
 
             // 상태를 REQUESTED로 변경 (웹훅 대기)
         } else {
