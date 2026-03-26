@@ -122,43 +122,43 @@ public class SubscriptionController {
 
     @PostMapping("/api/subscriptions/v1")
     public ResponseEntity<Map<String, String>> createSubscription(
-            @AuthenticationPrincipal CustomUser user,
+            @AuthenticationPrincipal Long userId,
             @Valid @RequestBody SubscriptionRequest request) {
 
-        Long subId = subscriptionService.initiateSubscription(user.getId(), request.getPlanId(), request);
+        Long subId = subscriptionService.initiateSubscription(userId, request.getPlanId(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(Map.of("subscriptionId", String.valueOf(subId)));
     }
 
     @GetMapping("/api/subscriptions/v1/{subscriptionId}")
     public ResponseEntity<SubscriptionResponse> getSubscription(
-            @AuthenticationPrincipal CustomUser user,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long subscriptionId) {
-        return ResponseEntity.ok(subscriptionService.getSubscriptionDto(user.getId(), subscriptionId));
+        return ResponseEntity.ok(subscriptionService.getSubscriptionDto(userId, subscriptionId));
     }
 
     @PatchMapping("/api/subscriptions/v1/{subscriptionId}/cancel")
     public ResponseEntity<SubscriptionStatusResponse> cancelSubscription(
-            @AuthenticationPrincipal CustomUser user,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long subscriptionId,
             @Valid @RequestBody SubscriptionUpdateRequest request) {
 
-        return ResponseEntity.ok(subscriptionService.updateSubscription(user.getId(), subscriptionId, request));
+        return ResponseEntity.ok(subscriptionService.updateSubscription(userId, subscriptionId, request));
     }
 
     @GetMapping("/api/subscriptions/v1/{subscriptionId}/billings")
     public ResponseEntity<List<BillingHistoryResponse>> getBillingHistory(
-            @AuthenticationPrincipal CustomUser user,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long subscriptionId) {
-        return ResponseEntity.ok(subscriptionService.getBillingHistoryDto(user.getId(), subscriptionId));
+        return ResponseEntity.ok(subscriptionService.getBillingHistoryDto(userId, subscriptionId));
     }
 
     @PostMapping("/api/subscriptions/v1/{subscriptionId}/billings")
     public ResponseEntity<CreateBillingResponse> createBilling(
-            @AuthenticationPrincipal CustomUser user,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long subscriptionId,
             @RequestBody(required = false) CreateBillingRequest request) {
-        return ResponseEntity.ok(subscriptionService.createBilling(user.getId(), subscriptionId));
+        return ResponseEntity.ok(subscriptionService.createBilling(userId, subscriptionId));
     }
 
     @GetMapping("/api/plans")
