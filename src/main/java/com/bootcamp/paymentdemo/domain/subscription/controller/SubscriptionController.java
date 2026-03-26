@@ -35,7 +35,7 @@ public class SubscriptionController {
      *
      * @AuthenticationPrincipal을 통해 로그인한 사용자 ID를 가져옵니다.
      */
-    @PostMapping
+    @PostMapping("/api/subscriptions/v1")
     public ResponseEntity<Map<String, String>> createSubscription(
             @AuthenticationPrincipal CustomUser user,
             @Valid @RequestBody SubscriptionRequest request) {

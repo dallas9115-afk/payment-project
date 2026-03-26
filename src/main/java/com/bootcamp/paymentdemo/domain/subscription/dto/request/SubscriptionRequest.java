@@ -23,10 +23,5 @@ public class SubscriptionRequest {
     @NotBlank(message = "고객 식별자는 필수입니다.")
     private String customerUid;    // 우리가 만든 이름표 (CUST-123 등)
 
-    // 카드 정보 (사용자에게 보여주거나 나중에 관리하기 용이함)
-    private String cardBrand;      // 예: 현대카드, 신한카드
-    private String last4;          // 카드 번호 마지막 4자리 (예: 1234)
 
-    // 추가로 필요한 정보가 있다면 여기에 더 넣습니다.
-    private String cardType;       // 개인/법인 등 (선택사항)
 }

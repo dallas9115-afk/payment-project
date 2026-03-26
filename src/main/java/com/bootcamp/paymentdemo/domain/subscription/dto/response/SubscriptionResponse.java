@@ -18,7 +18,6 @@ public class SubscriptionResponse {
     private String status;            // YAML: status (ACTIVE, CANCELED 등)
     private Long amount;              // YAML: amount (우리의 price)
     private LocalDateTime currentPeriodEnd; // YAML: currentPeriodEnd (우리 엔티티의 nextBillingDate)
-    private String last4;             // 카드 정보
 
     public static SubscriptionResponse fromEntity(Subscription entity) {
         String customerUid = entity.getPaymentMethod() != null && entity.getPaymentMethod().getCustomerUid() != null
