@@ -47,6 +47,16 @@ public class MembershipService {
 
     }
 
+    @Transactional
+    public void ensureDefaultMembership(Customer customer) {
+        if (userMembershipRepository.findByCustomerId(customer.getId()).isPresent()) {
+            return;
+        }
+
+        createDefaultMembership(customer);
+        log.info("기본 멤버십 자동 보정 완료 - customerId={}", customer.getId());
+    }
+
     // 결제후 등급이 바뀌는 메서드
     @Transactional
     public void updateMembershipAfterPayment(Long customerId, Long paidAmount) {

@@ -2,6 +2,7 @@ package com.bootcamp.paymentdemo.security.oauth;
 
 import com.bootcamp.paymentdemo.domain.customer.entity.Customer;
 import com.bootcamp.paymentdemo.domain.customer.repository.CustomerRepository; // Repository 직접 주입
+import com.bootcamp.paymentdemo.domain.customer.service.MembershipService;
 import com.bootcamp.paymentdemo.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -22,6 +23,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     private final JwtTokenProvider jwtTokenProvider;
     // CustomerService 대신 Repository와 PasswordEncoder를 사용합니다.
     private final CustomerRepository customerRepository;
+    private final MembershipService membershipService;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -59,6 +61,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                                 .phoneNumber("010-0000-0000") // 필수값이면 더미값
                                 .build()
                 ));
+        membershipService.ensureDefaultMembership(customer);
 
         String token = jwtTokenProvider.generateAccessToken(customer.getId(), customer.getEmail());
 

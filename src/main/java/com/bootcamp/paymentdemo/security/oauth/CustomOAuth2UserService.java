@@ -1,6 +1,8 @@
 package com.bootcamp.paymentdemo.security.oauth;
 
+import com.bootcamp.paymentdemo.domain.customer.entity.Customer;
 import com.bootcamp.paymentdemo.domain.customer.repository.CustomerRepository;
+import com.bootcamp.paymentdemo.domain.customer.service.MembershipService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
@@ -18,6 +20,7 @@ import java.util.Collections;
 public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequest, OAuth2User> {
 
     private final CustomerRepository customerRepository;
+    private final MembershipService membershipService;
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
@@ -32,8 +35,9 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         OAuthAttributes attributes = OAuthAttributes.of(registrationId, userNameAttributeName, oAuth2User.getAttributes());
 
         // 2. DB에 이메일이 없으면 신규 가입, 있으면 통과 (saveOrUpdate)
-        customerRepository.findByEmail(attributes.getEmail())
+        Customer customer = customerRepository.findByEmail(attributes.getEmail())
                 .orElseGet(() -> customerRepository.save(attributes.toEntity()));
+        membershipService.ensureDefaultMembership(customer);
 
         // 3. 시큐리티 세션에 유저 정보 저장 (임시 저장용)
         return new DefaultOAuth2User(
