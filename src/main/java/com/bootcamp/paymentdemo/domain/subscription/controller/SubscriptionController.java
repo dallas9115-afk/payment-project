@@ -3,6 +3,7 @@ package com.bootcamp.paymentdemo.domain.subscription.controller;
 import com.bootcamp.paymentdemo.config.CustomUser;
 import com.bootcamp.paymentdemo.domain.subscription.dto.request.CreateBillingRequest;
 import com.bootcamp.paymentdemo.domain.subscription.dto.request.SubscriptionRequest;
+import com.bootcamp.paymentdemo.domain.subscription.dto.request.SubscriptionUpdateRequest;
 import com.bootcamp.paymentdemo.domain.subscription.dto.response.BillingHistoryResponse;
 import com.bootcamp.paymentdemo.domain.subscription.dto.response.CreateBillingResponse;
 import com.bootcamp.paymentdemo.domain.subscription.dto.response.PlanResponse;
@@ -59,15 +60,14 @@ public class SubscriptionController {
      * [PATCH] 구독 해지 (RESTful하게 변경)
      * [피드백 4] POST -> PATCH (상태의 일부를 수정하는 것이므로)
      */
-    @PatchMapping("/{subscriptionId}/cancel")
+    @PatchMapping("/api/subscriptions/v1/{subscriptionId}/cancel")
     public ResponseEntity<SubscriptionStatusResponse> cancelSubscription(
             @AuthenticationPrincipal CustomUser user,
-            @PathVariable Long subscriptionId) {
+            @PathVariable Long subscriptionId,
+            @Valid @RequestBody SubscriptionUpdateRequest request) {
 
         log.info("구독 해지 요청: subId={}", subscriptionId);
-        subscriptionService.cancelSubscription(user.getId(), subscriptionId);
-
-        return ResponseEntity.ok(new SubscriptionStatusResponse(subscriptionId, SubscriptionStatus.CANCELED));
+        return ResponseEntity.ok(subscriptionService.updateSubscription(user.getId(), subscriptionId, request));
     }
 
     /**

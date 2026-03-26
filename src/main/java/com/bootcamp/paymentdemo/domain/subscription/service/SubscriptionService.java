@@ -12,8 +12,10 @@ import com.bootcamp.paymentdemo.domain.payment.service.PortOneApiClient;
 import com.bootcamp.paymentdemo.domain.subscription.dto.BillingContext;
 import com.bootcamp.paymentdemo.domain.subscription.dto.response.CreateBillingResponse;
 import com.bootcamp.paymentdemo.domain.subscription.dto.request.SubscriptionRequest;
+import com.bootcamp.paymentdemo.domain.subscription.dto.request.SubscriptionUpdateRequest;
 import com.bootcamp.paymentdemo.domain.subscription.dto.response.BillingHistoryResponse;
 import com.bootcamp.paymentdemo.domain.subscription.dto.response.SubscriptionResponse;
+import com.bootcamp.paymentdemo.domain.subscription.dto.response.SubscriptionStatusResponse;
 import com.bootcamp.paymentdemo.domain.subscription.entity.*;
 import com.bootcamp.paymentdemo.domain.subscription.repository.SubscriptionBillingRepository;
 import com.bootcamp.paymentdemo.domain.subscription.repository.SubscriptionPlanRepository;
@@ -26,6 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -287,6 +290,41 @@ public class SubscriptionService {
                 sub.getPlan().getPrice(),
                 sub.getCustomer().getId()
         );
+    }
+
+    @Transactional
+    public SubscriptionStatusResponse updateSubscription(Long customerId, Long subscriptionId, SubscriptionUpdateRequest request) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 구독입니다."));
+
+        if (!subscription.getCustomer().getId().equals(customerId)) {
+            throw new IllegalStateException("구독 상태 변경 권한이 없습니다.");
+        }
+
+        if (!"cancel".equalsIgnoreCase(request.getAction())) {
+            throw new IllegalArgumentException("지원하지 않는 액션입니다. action=" + request.getAction());
+        }
+
+        try {
+            String billingKey = subscription.getPaymentMethod().getBillingKey();
+            portOneApiClient.unsubscribeBillingKey(billingKey);
+
+            subscription.cancel();
+
+            String message = "구독이 해지되었습니다.";
+            if (request.getReason() != null && !request.getReason().isBlank()) {
+                message += " reason=" + request.getReason();
+            }
+
+            log.info("구독 해지 완료: subId={}, reason={}", subscriptionId, request.getReason());
+            return new SubscriptionStatusResponse(subscriptionId, SubscriptionStatus.CANCELED, message);
+
+        } catch (Exception e) {
+            subscription.updateStatus(SubscriptionStatus.CANCEL_FAILED);
+
+            log.error("구독 해지 중 오류 발생: subId={}, error={}", subscriptionId, e.getMessage());
+            throw new RuntimeException("구독 해지 처리 중 오류가 발생했습니다.");
+        }
     }
 
     // 구독 취소시 사용할 로직 -> 위에 메서드랑 변경할거야요
@@ -674,5 +712,230 @@ public class SubscriptionService {
 //}
 
 
-}
+    // 구독 생성 -> 결제 성공 -> ACTIVE(구독활성)
+    @Transactional
+    public void activateSubscriptionAfterCreateSuccess(Long subscriptionId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 구독입니다."));
 
+        if (subscription.getStatus() != SubscriptionStatus.PENDING
+                && subscription.getStatus() != SubscriptionStatus.PAST_DUE) {
+            throw new IllegalStateException("활성화할 수 없는 구독 상태입니다. 현재상태는" + subscription.getStatus());
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        subscription.updateStatus(SubscriptionStatus.ACTIVE);
+        subscription.setNextBillingDate(subscription.getPlan().calculateNextBillingDate(now));
+    }
+
+    // 구독 생성 -> 결제 실패 -> PAST_DUE(결제 연체)
+    @Transactional
+    public void markPastDueAfterCreateFailure(Long subscriptionId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 구독입니다."));
+
+        if (subscription.getStatus() != SubscriptionStatus.PENDING
+                && subscription.getStatus() != SubscriptionStatus.ACTIVE) {
+            throw new IllegalStateException("연체 처리할 수 없는 구독 상태입니다. 현재상태는" + subscription.getStatus());
+        }
+
+        subscription.toPastDue();
+    }
+
+    // PAST_DUE(결제 연체) -> 구독활성 -> 일수 기준에따라 정지 상태 변화
+    @Transactional
+    public void updatePastDueStatusByRemainingDays(Long subscriptionId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 구독입니다."));
+
+        if (subscription.getStatus() != SubscriptionStatus.PAST_DUE) {
+            throw new IllegalStateException("연체 상태 구독만 확인할 수 있습니다. 현재상태는" + subscription.getStatus());
+        }
+
+        if (isPastDueGraceExpired(subscription)) {
+            subscription.updateStatus(SubscriptionStatus.ENDED);
+            subscription.setNextBillingDate(null);
+            return;
+        }
+
+        subscription.updateStatus(SubscriptionStatus.PAST_DUE);
+    }
+
+    // PAST_DUE(결제 연체) -> 기한내 잔금 지불 함 -> 구독 활성
+    @Transactional
+    public void recoverPastDueSubscription(Long subscriptionId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 구독입니다."));
+
+        if (subscription.getStatus() != SubscriptionStatus.PAST_DUE) {
+            throw new IllegalStateException("연체 상태 구독만 복구할 수 있습니다. 현재상태는" + subscription.getStatus());
+        }
+
+        if (isPastDueGraceExpired(subscription)) {
+            throw new IllegalStateException("연체 기한이 지나 복구할 수 없습니다.");
+        }
+
+        LocalDateTime baseDate = subscription.getNextBillingDate() == null
+                ? LocalDateTime.now()
+                : subscription.getNextBillingDate();
+
+        subscription.updateStatus(SubscriptionStatus.ACTIVE);
+        subscription.setNextBillingDate(subscription.getPlan().calculateNextBillingDate(baseDate));
+    }
+
+    // PAST_DUE(결제 연체) -> 기한내 잔금 지불 안함 -> 정지됨
+    @Transactional
+    public void endPastDueSubscription(Long subscriptionId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 구독입니다."));
+
+        if (subscription.getStatus() != SubscriptionStatus.PAST_DUE) {
+            throw new IllegalStateException("연체 상태 구독만 종료할 수 있습니다. 현재상태는" + subscription.getStatus());
+        }
+
+        if (!isPastDueGraceExpired(subscription)) {
+            throw new IllegalStateException("아직 연체 기한이 남아 있습니다.");
+        }
+
+        subscription.updateStatus(SubscriptionStatus.ENDED);
+        subscription.setNextBillingDate(null);
+    }
+
+    // 구독 활성 -> 구독 갱신 -> 년간, 월간 기간 연장
+    @Transactional
+    public void renewSubscription(Long subscriptionId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 구독입니다."));
+
+        if (subscription.getStatus() != SubscriptionStatus.ACTIVE) {
+            throw new IllegalStateException("활성 구독만 갱신할 수 있습니다. 현재상태는" + subscription.getStatus());
+        }
+
+        LocalDateTime baseDate = subscription.getNextBillingDate() == null
+                ? LocalDateTime.now()
+                : subscription.getNextBillingDate();
+
+        subscription.setNextBillingDate(subscription.getPlan().calculateNextBillingDate(baseDate));
+    }
+
+    // 구독 활성 -> 취소 요청 -> 남은 기간 사용 후 종료 -> CANCELED(해지됨)
+    @Transactional
+    public void requestCancelSubscription(Long subscriptionId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 구독입니다."));
+
+        if (subscription.getStatus() != SubscriptionStatus.ACTIVE) {
+            throw new IllegalStateException("활성 구독만 해지 요청할 수 있습니다. 현재상태는" + subscription.getStatus());
+        }
+
+        subscription.updateStatus(SubscriptionStatus.CANCELED);
+    }
+
+    // 구독 활성 -> 구독 기간 종료 -> 잔여일 기준 초과 안함 -> 잔금 안함 -> ENDED(이용 종료)
+    @Transactional
+    public void endSubscriptionWithoutRemainingDays(Long subscriptionId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 구독입니다."));
+
+        long remainingDays = calculateRemainingDays(subscription);
+        long settlementAmount = calculateSettlementAmount(subscription);
+
+        if (remainingDays > 0) {
+            throw new IllegalStateException("아직 남은 기간이 있습니다. 잔여일은" + remainingDays);
+        }
+
+        if (settlementAmount > 0) {
+            throw new IllegalStateException("잔금이 남아 있어 종료할 수 없습니다. 잔금은" + settlementAmount);
+        }
+
+        subscription.updateStatus(SubscriptionStatus.ENDED);
+        subscription.setNextBillingDate(null);
+    }
+
+    // 구독 활성 -> 구독 기간 종료 -> 잔여일 기준 초과 함 -> 잔금 지불함 -> CANCELED(해지됨)
+    @Transactional
+    public void cancelSubscriptionAfterSettlementPaid(Long subscriptionId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 구독입니다."));
+
+        long remainingDays = calculateRemainingDays(subscription);
+        long settlementAmount = calculateSettlementAmount(subscription);
+
+        if (remainingDays <= 0) {
+            throw new IllegalStateException("남은 기간이 없는 구독입니다.");
+        }
+
+        if (settlementAmount <= 0) {
+            throw new IllegalStateException("지불할 잔금이 없습니다.");
+        }
+
+        billingRepository.save(SubscriptionBilling.builder()
+                .subscription(subscription)
+                .amount(settlementAmount)
+                .scheduledDate(LocalDateTime.now())
+                .status(BillingStatus.SUCCESS)
+                .build());
+
+        subscription.updateStatus(SubscriptionStatus.CANCELED);
+    }
+
+    // 구독 활성 -> 구독 기간 종료 -> 잔여일 기준 초과 함 -> 잔금 지불 안함 -> 정지됨
+    @Transactional
+    public void markPastDueAfterSettlementFailure(Long subscriptionId) {
+        Subscription subscription = subscriptionRepository.findById(subscriptionId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 구독입니다."));
+
+        long remainingDays = calculateRemainingDays(subscription);
+        long settlementAmount = calculateSettlementAmount(subscription);
+
+        if (remainingDays <= 0) {
+            throw new IllegalStateException("남은 기간이 없는 구독입니다.");
+        }
+
+        if (settlementAmount <= 0) {
+            throw new IllegalStateException("지불할 잔금이 없습니다.");
+        }
+
+        billingRepository.save(SubscriptionBilling.builder()
+                .subscription(subscription)
+                .amount(settlementAmount)
+                .scheduledDate(LocalDateTime.now())
+                .status(BillingStatus.FAILED)
+                .errorMessage("잔금 미납")
+                .build());
+
+        subscription.toPastDue();
+    }
+
+    private boolean isPastDueGraceExpired(Subscription subscription) {
+        if (subscription.getNextBillingDate() == null) {
+            return true;
+        }
+
+        return subscription.getNextBillingDate()
+                .plusDays(PAST_DUE_DAYS)
+                .isBefore(LocalDateTime.now());
+    }
+
+    private long calculateRemainingDays(Subscription subscription) {
+        if (subscription.getNextBillingDate() == null) {
+            return 0L;
+        }
+
+        if (!subscription.getNextBillingDate().isAfter(LocalDateTime.now())) {
+            return 0L;
+        }
+
+        return ChronoUnit.DAYS.between(LocalDateTime.now(), subscription.getNextBillingDate());
+    }
+
+    private long calculateSettlementAmount(Subscription subscription) {
+        long remainingDays = calculateRemainingDays(subscription);
+
+        if (remainingDays <= 0) {
+            return 0L;
+        }
+
+        return subscription.getPlan().getPrice();
+    }
+}
