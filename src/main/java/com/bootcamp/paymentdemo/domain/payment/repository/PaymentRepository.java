@@ -1,5 +1,6 @@
 package com.bootcamp.paymentdemo.domain.payment.repository;
 
+import com.bootcamp.paymentdemo.domain.order.entity.Order;
 import com.bootcamp.paymentdemo.domain.payment.entity.Payment;
 import com.bootcamp.paymentdemo.domain.payment.enums.PaymentStatus;
 import jakarta.persistence.LockModeType;
@@ -26,5 +27,9 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             PaymentStatus status,
             LocalDateTime now
     );
+
+
+    // 포인트 조회를 위해서 사용.
+    Optional<Payment> findByOrder(Order order);
 
 }

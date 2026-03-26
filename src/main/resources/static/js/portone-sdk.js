@@ -98,11 +98,15 @@ async function openPortOnePayment(paymentData) {
             });
             throw new Error(response.message);
         } else {
-            // 결제 성공
+            // 결제 성공 → 서버에 결제 확정 요청
+            console.log('3단계: 서버에 결제 확정 요청...');
+            const confirmResult = await confirmPaymentTemplate(response.paymentId);
+
             displaySuccess({
                 paymentId: response.paymentId,
                 txId: response.txId,
-                message: '결제창 완료. 서버에서 검증하세요.'
+                message: '결제 확정 완료',
+                confirmResult: confirmResult
             });
             return response;
         }
