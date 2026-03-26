@@ -267,12 +267,7 @@ async function issuePortOneBillingKey(billingKeyData) {
         const billingKeyRequest = {
             storeId: portoneConfig.storeId,
             channelKey: channelKey,
-            billingKeyMethod: billingKeyData.billingKeyMethod || 'EASY_PAY',
-            method: {
-                easyPay: {
-                    easyPayProvider: 'TOSSPAY'
-                }
-            },
+            billingKeyMethod: 'CARD',
             issueId: billingKeyData.issueId || `billing_${Date.now()}`,
             issueName: billingKeyData.issueName || '정기결제 등록',
             customer: billingKeyData.customer || {
