@@ -23,6 +23,7 @@ public class GlobalExceptionHandler {
                 ));
     }
 
+    // 테스트
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgumentException(IllegalArgumentException e) {
         log.warn("Illegal argument", e);
@@ -34,7 +35,7 @@ public class GlobalExceptionHandler {
                         e.getMessage()
                 ));
     }
-
+// 테스트
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalStateException(IllegalStateException e) {
         log.warn("Illegal state", e);
