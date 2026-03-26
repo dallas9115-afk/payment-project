@@ -10,7 +10,6 @@ import com.bootcamp.paymentdemo.domain.point.repository.PointDetailRepository;
 import com.bootcamp.paymentdemo.domain.point.repository.PointHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.scheduling.annotation.Scheduled;

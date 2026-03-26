@@ -6,7 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 
-@Getter // 👈 여기서 getAction() 메서드를 자동으로 만들어줍니다!
+@Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

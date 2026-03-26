@@ -2,13 +2,10 @@ package com.bootcamp.paymentdemo.domain.point.repository;
 
 import com.bootcamp.paymentdemo.domain.point.entity.PointDetail;
 import com.bootcamp.paymentdemo.domain.point.entity.PointStatus;
-import com.bootcamp.paymentdemo.domain.point.entity.PointType;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;

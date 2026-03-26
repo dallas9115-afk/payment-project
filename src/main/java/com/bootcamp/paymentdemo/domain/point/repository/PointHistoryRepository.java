@@ -11,6 +11,5 @@ public interface PointHistoryRepository extends JpaRepository<PointHistory, Long
     List<PointHistory> findAllByOrderIdAndType(String orderId, PointType pointType);
 
     boolean existsByOrderIdAndType(String orderId, PointType type);
-    boolean existsByOrderIdAndReasonContaining(String orderId, String keyword);
 
 }
