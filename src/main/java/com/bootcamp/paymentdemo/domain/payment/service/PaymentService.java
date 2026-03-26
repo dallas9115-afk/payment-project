@@ -233,7 +233,7 @@ public class PaymentService {
      */
     public static String generatePaymentId() {
         String random = UUID.randomUUID().toString().replace("-", "");
-        return "pay-" + "-" + random;
+        return "pay-" + random;
     }
 
     // 주문 조회 화면에서 결제 기준 요약 정보를 붙일 때 사용하는 메서드

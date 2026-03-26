@@ -73,16 +73,30 @@ async function makeApiRequest(endpointKey, options = {}) {
             }
         }
         const text = await response.text();
-        const data = text ? JSON.parse(text) : {
-            error: '응답 본문 없음',
-            status: response.status
-        };
+
+        let data;
+        try {
+            data = text ? JSON.parse(text) : {
+                error: '응답 본문 없음',
+                status: response.status
+            };
+        } catch {
+            data = {
+                message: text || `HTTP ${response.status}: ${response.statusText}`
+            };
+        }
+
 
         // 응답 표시 및 에러 처리
         if (!response.ok) {
             displayError(data);
-            // HTTP 에러 발생 시 예외 throw
-            const errorMessage = data.message || data.error || `HTTP ${response.status}: ${response.statusText}`;
+
+            const errorMessage =
+                data?.message ||
+                data?.error?.message ||
+                data?.error ||
+                `HTTP ${response.status}: ${response.statusText}`;
+
             throw new Error(errorMessage);
         }
 
