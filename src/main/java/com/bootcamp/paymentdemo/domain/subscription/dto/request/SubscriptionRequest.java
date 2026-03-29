@@ -23,7 +23,5 @@ public class SubscriptionRequest {
     @NotBlank(message = "고객 식별자는 필수입니다.")
     private String customerUid;    // 우리가 만든 이름표 (CUST-123 등)
 
-    private Long amount;              // YAML: amount (우리의 price)
-
 
 }

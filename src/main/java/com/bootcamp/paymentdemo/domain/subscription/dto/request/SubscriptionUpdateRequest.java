@@ -1,6 +1,7 @@
 package com.bootcamp.paymentdemo.domain.subscription.dto.request;
 
-import jakarta.validation.constraints.NotBlank;
+import com.bootcamp.paymentdemo.domain.subscription.enums.SubscriptionAction;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -12,8 +13,8 @@ import lombok.Builder;
 @AllArgsConstructor
 public class SubscriptionUpdateRequest {
 
-    @NotBlank(message = "액션 타입은 필수입니다.")
-    private String action; // 'cancel' 등이 들어옵니다.
+    @NotNull(message = "액션 타입은 필수입니다.")
+    private SubscriptionAction action; // CANCEL 등이 들어옵니다.
 
     private String reason; // 해지 사유
 }

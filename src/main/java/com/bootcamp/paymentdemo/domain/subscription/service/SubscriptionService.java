@@ -30,7 +30,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -254,19 +253,7 @@ public class SubscriptionService {
                 subscription.getId(), paymentId);
     }
 
-    private Long extractBillingId(String paymentId) {
-        log.debug("Billing ID 추출 시도: {}", paymentId);
-
-        String[] parts = paymentId.split("_");
-        for (String part : parts) {
-            if (part.matches("\\d+")) {
-                return Long.parseLong(part);
-            }
-        }
-
-        log.error("결제 식별자 파싱 실패 - paymentId: {}", paymentId);
-        throw new IllegalArgumentException("결제 식별자 형식이 올바르지 않습니다.");
-    }
+    // extractBillingId method has been removed as it was dead code.
 
 
     @Transactional
@@ -334,7 +321,7 @@ public class SubscriptionService {
             throw new IllegalStateException("구독 상태 변경 권한이 없습니다.");
         }
 
-        if (!"cancel".equalsIgnoreCase(request.getAction())) {
+        if (request.getAction() != com.bootcamp.paymentdemo.domain.subscription.enums.SubscriptionAction.CANCEL) {
             throw new IllegalArgumentException("지원하지 않는 액션입니다. action=" + request.getAction());
         }
 
