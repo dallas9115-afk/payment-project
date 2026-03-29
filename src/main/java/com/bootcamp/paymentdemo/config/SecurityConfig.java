@@ -49,13 +49,12 @@ public class SecurityConfig {
                         ).permitAll() // 공개 인증 API
                         .requestMatchers("/api/public/**").permitAll() // 공개 API
                         .requestMatchers("/actuator/**").permitAll() // 헬스체크
+                        .requestMatchers(
+                                "/api/payments/webhook",
+                                "/api/v1/webhooks/portone"
+                        ).permitAll() // 포트원 결제 웹훅 API (인증 불필요)
+                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll() // OAuth2 로그인
                         .requestMatchers("/api/**").authenticated() // 나머지 API 인증 필요
-                        .requestMatchers(toStaticResources().atCommonLocations()).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/", "/pages/**").permitAll()
-                        .requestMatchers("/api/auth/v1/register", "/api/auth/v1/login").permitAll()
-                        .requestMatchers("/api/public/**", "/actuator/**").permitAll()
-                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
-                        .requestMatchers("/api/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .oauth2Login(oauth2 -> oauth2
