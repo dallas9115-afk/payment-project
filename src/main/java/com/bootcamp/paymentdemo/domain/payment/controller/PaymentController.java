@@ -31,8 +31,15 @@ public class PaymentController {
             @RequestBody PortOneWebhookRequest request) {
 
         try {
-            log.info(" 포트원 웹훅 수신 WebhookId: {}, EventType: {}, PaymentId: {}",
-                    webhookId, request.getType(), request.getData().getPaymentId());
+            log.info("포트원 V2 웹훅 수신 - webhookId={}, paymentId={}, txId={}, status={}",
+                    webhookId, request.getPaymentId(), request.getTxId(), request.getStatus());
+
+            // Paid 상태가 아닌 웹훅은 수신 확인만 하고 무시 (Ready, Failed 등)
+            if (!request.isPaidStatus()) {
+                log.info("Paid가 아닌 상태 웹훅 무시 - status={}, paymentId={}",
+                        request.getStatus(), request.getPaymentId());
+                return ResponseEntity.ok("Webhook Received (Non-Paid status ignored)");
+            }
 
             // 비즈니스 로직(Service)으로 검증 및 상태 업데이트 위임
             paymentService.processWebhook(webhookId, request);
@@ -48,7 +55,8 @@ public class PaymentController {
             // DB 통신 장애 등 일시적 오류 -> 500 에러를 뱉어서 포트원이 나중에 재시도하게 함
             log.error("웹훅 처리 중 시스템 에러 발생: ", e);
             return ResponseEntity.internalServerError().body("Webhook Processing Failed");
-        }    }
+        }
+    }
 
     @PostMapping("/v1/payments/checkout-ready")
     public ResponseEntity<PaymentCreateReadyResponse> checkoutReady(

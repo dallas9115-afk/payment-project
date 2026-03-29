@@ -20,13 +20,12 @@ public class SubscriptionWebhookController {
 
     @PostMapping("/portone")
     public ResponseEntity<Void> handlePortOneWebhook(@RequestBody PortOneWebhookRequest request) {
-        log.info("포트원 V2 웹훅 수신: type={}, paymentId={}",
-                request.getType(), request.getData().getPaymentId());
+        log.info("포트원 V2 구독 웹훅 수신: paymentId={}, status={}, txId={}",
+                request.getPaymentId(), request.getStatus(), request.getTxId());
 
-        // V2 규격: 결제 완료 이벤트 타입 확인
-        if ("Transaction.Paid".equals(request.getType())) {
-            // data 안의 paymentId(우리 시스템의 merchant_uid 역할)를 사용
-            subscriptionService.confirmSubscription(request.getData().getPaymentId());
+        // V2 규격: 결제 완료(Paid) 상태일 때만 구독 확정
+        if (request.isPaidStatus()) {
+            subscriptionService.confirmSubscription(request.getPaymentId());
         }
 
         return ResponseEntity.ok().build();

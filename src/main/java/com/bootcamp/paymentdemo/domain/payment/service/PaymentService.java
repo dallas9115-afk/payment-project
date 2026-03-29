@@ -193,14 +193,14 @@ public class PaymentService {
      * 비즈니스적으로 거절해야 하는 상황은 IllegalArgumentException으로 올립니다.
      */
     public void processWebhook(String webhookId, PortOneWebhookRequest request) {
-        if (request == null || request.getData() == null || request.getData().getPaymentId() == null) {
+        if (request == null || request.getPaymentId() == null) {
             throw new IllegalArgumentException("웹훅 요청 형식이 올바르지 않습니다. paymentId가 없습니다.");
         }
 
-        String paymentId = request.getData().getPaymentId();
+        String paymentId = request.getPaymentId();
         String verifyIdempotencyKey = portOneApiClient.buildVerifyIdempotencyKey(paymentId);
-        log.info("웹훅 처리 시작 - webhookId={}, paymentId={}, eventType={}",
-                webhookId, paymentId, request.getType());
+        log.info("웹훅 처리 시작 - webhookId={}, paymentId={}, status={}",
+                webhookId, paymentId, request.getStatus());
 
         Payment payment = paymentLifecycleService.getPayment(paymentId);
 
