@@ -217,9 +217,16 @@
 
         // 주문 목록 로드
         async function loadOrders() {
+            // 사용자 정보가 없으면 주문 조회 불가
+            if (!currentUser || !currentUser.customerUid) {
+                document.getElementById('orders-container').innerHTML =
+                    '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">로그인 후 이용해주세요.</p>';
+                return;
+            }
+
             try {
                 const result = await makeApiRequest('list-orders', {
-                    pathParams: { customerId: currentUser?.customerUid }
+                    pathParams: { customerId: currentUser.customerUid }
                 });
 
                 if (!validateApiResponse('list-orders', result)) {

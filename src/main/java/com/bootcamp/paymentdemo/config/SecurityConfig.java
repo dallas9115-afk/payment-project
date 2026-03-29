@@ -49,6 +49,8 @@ public class SecurityConfig {
                         ).permitAll() // 공개 인증 API
                         .requestMatchers("/api/public/**").permitAll() // 공개 API
                         .requestMatchers("/actuator/**").permitAll() // 헬스체크
+                        .requestMatchers(HttpMethod.GET, "/api/plans").permitAll() // 플랜 조회 (비로그인 허용)
+                        .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll() // 상품 조회 (비로그인 허용)
                         .requestMatchers(
                                 "/api/payments/webhook",
                                 "/api/v1/webhooks/portone"

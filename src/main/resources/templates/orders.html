@@ -354,9 +354,15 @@
             const containerEl = document.getElementById('order-list-container');
             const emptyEl = document.getElementById('order-list-empty');
 
+            // 사용자 정보가 없으면 주문 조회 불가
+            if (!currentUser || !currentUser.customerUid) {
+                loadingEl.innerHTML = '<span style="color: var(--text-secondary);">로그인 후 이용해주세요.</span>';
+                return;
+            }
+
             try {
                 const result = await makeApiRequest('list-orders', {
-                    pathParams: { customerId: currentUser?.customerUid }
+                    pathParams: { customerId: currentUser.customerUid }
                 });
 
                 // YML 스키마 기반 자동 검증

@@ -335,7 +335,4 @@ function showApiValidationError(endpointKey, contract, errors) {
             'error'
         );
     }
-
-    // 추가로 alert도 표시 (간단한 버전)
-    alert(message);
 }
