@@ -75,7 +75,7 @@ async function openPortOnePayment(paymentData) {
                 email: 'customer@example.com'
             },
             redirectUrl: window.location.href,
-            noticeUrls: paymentData.noticeUrls || []
+            noticeUrls: paymentData.noticeUrls || [window.location.origin + '/api/payments/webhook']
         };
 
         console.log('PortOne 결제창 열기:', paymentRequest);
@@ -212,7 +212,7 @@ async function openPortOnePaymentWithPoints(paymentData) {
                 email: 'customer@example.com'
             },
             redirectUrl: window.location.href,
-            noticeUrls: paymentData.noticeUrls || []
+            noticeUrls: paymentData.noticeUrls || [window.location.origin + '/api/payments/webhook']
         };
 
         console.log('PortOne 결제창 열기 (포인트 차감 후):', paymentRequest);
@@ -299,7 +299,7 @@ async function issuePortOneBillingKey(billingKeyData) {
                 email: 'customer@example.com'
             },
             redirectUrl: window.location.href,
-            noticeUrls: billingKeyData.noticeUrls || []
+            noticeUrls: billingKeyData.noticeUrls || [window.location.origin + '/api/v1/webhooks/portone']
         };
 
         console.log('빌링키 발급 시작:', billingKeyRequest);
